@@ -1,0 +1,25 @@
+{
+  "name": "advent",
+  "private": true,
+  "type": "module",
+  "description": "advent.useless.blog — one Wend, Pinpoint and Crossclimb a day, Dec 1–31",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:web": "tsc -p tsconfig.json",
+    "build:content": "node tools/content.mjs build",
+    "build": "npm run build:web && npm run build:content",
+    "validate": "npm run build:web && node tools/content.mjs validate --stamp",
+    "typecheck": "npm run build && tsc -p tsconfig.server.json --noEmit",
+    "test": "npm run build:web && node --test \"test/**/*.test.mjs\"",
+    "dev": "npm run build && tsc -p tsconfig.server.json && node tools/dev-server.mjs",
+    "layout": "npm run build:web && node tools/wend-layout.mjs",
+    "db:local": "npx wrangler d1 migrations apply advent --local",
+    "db:preview": "npx wrangler d1 migrations apply advent-preview --remote --env preview",
+    "db:prod": "npx wrangler d1 migrations apply advent --remote"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  }
+}

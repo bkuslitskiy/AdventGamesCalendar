@@ -1,0 +1,10 @@
+{
+  "draft": true,
+  "length": 4,
+  "rungs": [
+    { "word": "LOSS", "clue": "Defeat" },
+    { "word": "LOSE", "clue": "Misplace" },
+    { "word": "LORE", "clue": "Folk knowledge" }
+  ],
+  "ends": { "top": "LESS", "bottom": "MORE", "clue": "Opposites in quantity" }
+}

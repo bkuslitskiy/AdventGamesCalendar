@@ -1,0 +1,8 @@
+node_modules/
+public/js/
+.dev/
+.wrangler/
+.dev.vars
+server/content.generated.ts
+*.sqlite
+*.sqlite-*

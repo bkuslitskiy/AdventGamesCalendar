@@ -1,0 +1,6 @@
+{
+  "draft": true,
+  "clues": ["Rialto", "Brooklyn", "Tower", "Golden Gate", "London"],
+  "answer": "Bridges",
+  "tests": { "accept": ["famous bridges", "bridge"], "reject": ["rivers", "cities"] }
+}

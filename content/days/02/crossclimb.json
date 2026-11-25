@@ -1,0 +1,11 @@
+{
+  "draft": true,
+  "length": 4,
+  "rungs": [
+    { "word": "HEAL", "clue": "Get better" },
+    { "word": "TEAL", "clue": "Blue-green" },
+    { "word": "TELL", "clue": "Let slip" },
+    { "word": "TALL", "clue": "Like a giraffe" }
+  ],
+  "ends": { "top": "HEAD", "bottom": "TAIL", "clue": "Two sides of a coin" }
+}

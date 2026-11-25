@@ -1,0 +1,10 @@
+{
+  "draft": true,
+  "length": 4,
+  "rungs": [
+    { "word": "CORD", "clue": "Rope's thinner cousin" },
+    { "word": "CARD", "clue": "Birthday mail" },
+    { "word": "WARD", "clue": "Hospital wing" }
+  ],
+  "ends": { "top": "COLD", "bottom": "WARM", "clue": "Opposite temperatures" }
+}

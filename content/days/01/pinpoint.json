@@ -1,0 +1,10 @@
+{
+  "draft": true,
+  "clues": ["Wrench", "Level", "Tape", "Pliers", "Hammer"],
+  "answer": "Things in a toolbox",
+  "reject": ["tools"],
+  "tests": {
+    "accept": ["toolbox items", "stuff in a tool box", "things in a toolbx"],
+    "reject": ["tools", "hardware"]
+  }
+}
