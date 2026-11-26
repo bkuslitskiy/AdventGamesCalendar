@@ -110,6 +110,7 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss".
 - **Mid-puzzle state:** stays on the device. Only finished solves sync. Offline solves queue in an outbox and send on the next load.
 - **Lateness:** compares the solve time, on a device clock synced to the server, with the puzzle's deadline. That's the end of its day in New York, or the stamped `deadline`.
 - **Calendar states:** not open, puzzles left, solved late, or solved on the day. One pip per game.
-- **No fail states:** Pinpoint keeps giving guesses after clue 5, Wordle adds rows after the sixth, and Connections counts mistakes without ending the game. The calendar only knows solved, late or not yet.
+- **No fail states:** Wordle adds rows after the sixth, and Connections counts mistakes without ending the game. The calendar only knows solved, late or not yet.
+- **Pinpoint's ending:** a miss on clue 5 offers the answer. Turning it down gives two more guesses, then the offer comes back. Turn it down again and two more misses end the game: "You're cut off. The answer is '…'." A shown answer finishes the game like a solve (it counts toward the day, on time or late, and unlocks the afterword), but the board records `answerShown` (`asked` or `cutoff`). The day page then says Revealed, admin and the ntfy push say "asked for the answer" or "cut off", and the result card leads with that instead of Solved.
 - **Keyboards:** Wordle and the Mini use an on-screen keyboard, so the phone's own keyboard never covers the grid. A physical keyboard works too (arrows, Tab and space in the Mini).
 - **Queens and Patches:** not built yet. The game ids already exist, and the `events` table no longer restricts game ids, so adding a game needs no migration.

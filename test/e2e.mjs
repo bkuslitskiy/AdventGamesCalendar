@@ -278,6 +278,50 @@ try {
     ok((await guest.locator('.conn-tile.on').count()) === 1, 'guest: mid-puzzle state survives leaving the page');
   }
 
+  // ---- Pinpoint's ending: offer, two more, offer, two more, cut off (as guest) ----
+  if (has('pinpoint')) {
+    const p = load('pinpoint');
+    const miss = async (pg, i) => {
+      await pg.fill('input[name=guess]', `zzz nothing ${i}`);
+      await pg.keyboard.press('Enter');
+    };
+    await guest.goto(`${BASE}/#/day/1/pinpoint`);
+    for (let i = 1; i <= 5; i++) await miss(guest, i);
+    ok((await guest.locator('.offer').count()) === 1 && (await guest.locator('form.guess').count()) === 0, 'pinpoint: a miss on the last clue offers the answer');
+    await guest.reload();
+    await guest.waitForSelector('.offer');
+    ok(true, 'pinpoint: the offer survives a reload');
+    await guest.getByRole('button', { name: 'Two more guesses' }).click();
+    ok(/Two more guesses, then I’ll ask again/.test(await guest.textContent('.feedback')), 'pinpoint: declining gives two more guesses');
+    await miss(guest, 6);
+    ok((await guest.locator('form.guess').count()) === 1, 'pinpoint: one extra miss keeps guessing');
+    await miss(guest, 7);
+    ok(/cut off/.test(await guest.textContent('.offer')), 'pinpoint: the second offer warns about the cut-off');
+    await guest.getByRole('button', { name: 'Two more guesses' }).click();
+    await miss(guest, 8);
+    ok(/Last guess/.test(await guest.textContent('.feedback')), 'pinpoint: the ninth guess is flagged as the last');
+    await miss(guest, 9);
+    await guest.waitForSelector('.result h2');
+    const t = (await guest.textContent('.result')).replace(/\s+/g, ' ');
+    ok(/You’re cut off\./.test(t) && t.includes(`The answer is ‘${p.answer}’.`), `pinpoint: cut off with the answer — ${t}`);
+    ok((await guest.locator('.misses s').count()) === 9, 'pinpoint: the cut-off board lists all nine misses');
+    await guest.goto(`${BASE}/#/day/1`);
+    await guest.waitForSelector('.games');
+    ok(/Revealed/.test(await guest.textContent('.games a[href="#/day/1/pinpoint"] .state')), 'pinpoint: the day page says Revealed');
+
+    const asker = await phone({ viewport: { width: 320, height: 640 } });
+    await asker.goto(`${BASE}/`);
+    await asker.getByRole('button', { name: 'No' }).click();
+    await asker.goto(`${BASE}/#/day/1/pinpoint`);
+    for (let i = 1; i <= 5; i++) await miss(asker, i);
+    ok(await asker.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '320px: the pinpoint offer fits');
+    await asker.getByRole('button', { name: 'Show me' }).click();
+    await asker.waitForSelector('.result h2');
+    ok(/Answer revealed/.test(await asker.textContent('.result h2')), 'pinpoint: asking shows the answer');
+    const progress = await asker.evaluate(() => fetch('/api/progress').then((r) => r.json()));
+    ok(progress.solves.length === games.length, "pinpoint: a guest's revealed answer doesn't touch babe's log");
+  }
+
   // ---- Small phone layout ----
   const small = await phone({ viewport: { width: 320, height: 640 } });
   await small.goto(`${BASE}/`);

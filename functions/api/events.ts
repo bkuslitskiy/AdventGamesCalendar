@@ -3,7 +3,7 @@ import { fail, json, nowMs, readJson } from '../../server/http.ts';
 import { appendEvent } from '../../server/db.ts';
 import { earlyAccess, puzzleFor } from '../../server/content.ts';
 import { dayOpen, iso, isLate } from '../../src/core/time.ts';
-import { GAME_NAMES, isGameId, type EventInput, type Stats } from '../../src/core/types.ts';
+import { GAME_NAMES, isGameId, pinpointShown, type EventInput, type Stats } from '../../src/core/types.ts';
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -46,11 +46,14 @@ export const onRequestPost: Handler = async (ctx) => {
     payload,
   });
   const late = isLate(tsClient, puzzle.deadline);
-  if (!duplicate) ctx.waitUntil(ping(env, day, GAME_NAMES[game], late, payload.stats));
+  const shown = game === 'pinpoint' ? pinpointShown(payload.board) : undefined;
+  if (!duplicate) ctx.waitUntil(ping(env, day, GAME_NAMES[game], late, payload.stats, shown));
   return json({ ok: true, id, late, duplicate });
 };
 
-async function ping(env: Env, day: number, name: string, late: boolean, stats: Stats): Promise<void> {
+const ENDED = { asked: 'asked for the answer', cutoff: 'cut off' } as const;
+
+async function ping(env: Env, day: number, name: string, late: boolean, stats: Stats, shown?: keyof typeof ENDED): Promise<void> {
   if (!env.NTFY_URL) return;
   const secs = Math.round((stats?.ms ?? 0) / 1000);
   const time = `${Math.floor(secs / 60)}m${String(secs % 60).padStart(2, '0')}s`;
@@ -58,8 +61,8 @@ async function ping(env: Env, day: number, name: string, late: boolean, stats: S
   try {
     await fetch(env.NTFY_URL, {
       method: 'POST',
-      headers: { Title: `Advent: day ${day} ${name}`, Tags: late ? 'hourglass' : 'tada' },
-      body: `Day ${day} ${name} solved ${late ? 'late' : 'on time'}, ${time}, ${misses} ${misses === 1 ? 'miss' : 'misses'}`,
+      headers: { Title: `Advent: day ${day} ${name}`, Tags: shown ? 'see_no_evil' : late ? 'hourglass' : 'tada' },
+      body: `Day ${day} ${name} ${shown ? `${ENDED[shown]},` : 'solved'} ${late ? 'late' : 'on time'}, ${time}, ${misses} ${misses === 1 ? 'miss' : 'misses'}`,
     });
   } catch {
     // A failed ping never fails the solve.

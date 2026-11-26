@@ -97,6 +97,48 @@ export function judge(guess: string, p: Pick<PinpointPuzzle, 'answer' | 'aliases
   return 'wrong';
 }
 
+// ---- Endgame ----
+// A miss on the last clue offers the answer. Declining buys EXTRA more guesses, then the offer comes
+// back. After OFFERS offers have been declined, EXTRA more misses end the game and show the answer.
+// With 5 clues: offers after misses 5 and 7, cut off at miss 9.
+
+export const PINPOINT_EXTRA = 2;
+export const PINPOINT_OFFERS = 2;
+
+export type PinpointStage =
+  /** Still revealing clues. */
+  | { kind: 'clue' }
+  /** Asking whether to show the answer. `nth` counts from 1; `last` means no offer follows this one. */
+  | { kind: 'offer'; nth: number; last: boolean }
+  /** Extra guesses after a declined offer. `left` until the next offer or the cut-off (`final`). */
+  | { kind: 'extra'; left: number; final: boolean }
+  /** Out of guesses: show the answer. */
+  | { kind: 'cutoff' };
+
+/** Misses at which the answer is offered. */
+const offerPoints = (clues: number): number[] =>
+  Array.from({ length: PINPOINT_OFFERS }, (_, i) => clues + i * PINPOINT_EXTRA);
+
+export const pinpointCutoff = (clues: number): number => clues + PINPOINT_OFFERS * PINPOINT_EXTRA;
+
+/**
+ * Where the game stands after `misses` wrong guesses, with `declined` answer offers turned down.
+ * An offer already passed counts as declined, so state saved before offers existed (no count) still works.
+ */
+export function pinpointStage(clues: number, misses: number, declined = 0): PinpointStage {
+  if (misses < clues) return { kind: 'clue' };
+  const cutoff = pinpointCutoff(clues);
+  if (misses >= cutoff) return { kind: 'cutoff' };
+  const offers = offerPoints(clues);
+  const passed = offers.filter((o) => o < misses).length;
+  const d = Math.max(declined, passed);
+  if (offers.includes(misses) && d === passed) {
+    return { kind: 'offer', nth: passed + 1, last: passed + 1 === offers.length };
+  }
+  const next = [...offers, cutoff].find((t) => t > misses)!;
+  return { kind: 'extra', left: next - misses, final: next === cutoff };
+}
+
 export function validatePinpoint(p: PinpointPuzzle): string[] {
   const errors: string[] = [];
   if (!Array.isArray(p.clues) || p.clues.length !== 5) errors.push('needs exactly 5 clues');

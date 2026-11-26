@@ -2,7 +2,7 @@ import { h } from '../dom.ts';
 import { loadDay, type App } from '../app.ts';
 import { shell } from './shell.ts';
 import { gameStatus } from '../../core/calendar.ts';
-import { ALL_GAMES, GAME_NAMES, type GameId } from '../../core/types.ts';
+import { ALL_GAMES, GAME_NAMES, pinpointShown, solveKey, type GameId } from '../../core/types.ts';
 
 export const BLURB: Partial<Record<GameId, string>> = {
   wend: 'Trace the hidden words. Every letter is used once.',
@@ -41,6 +41,7 @@ export async function renderDay(app: App, n: number): Promise<void> {
       { class: 'games' },
       games.map((g) => {
         const st = gameStatus(n, g, app.solves);
+        const shown = g === 'pinpoint' && pinpointShown(app.solves.get(solveKey(n, g))?.payload.board);
         return h(
           'li',
           null,
@@ -49,7 +50,7 @@ export async function renderDay(app: App, n: number): Promise<void> {
             { href: `#/day/${n}/${g}` },
             h('span', { class: 'name' }, GAME_NAMES[g]),
             h('span', { class: 'what' }, BLURB[g] ?? ''),
-            h('span', { class: ['state', st] }, STATE_TEXT[st]),
+            h('span', { class: ['state', st] }, shown ? 'Revealed' : STATE_TEXT[st]),
           ),
         );
       }),

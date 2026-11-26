@@ -9,6 +9,7 @@ import { iso, isLate } from '../../core/time.ts';
 import {
   ALL_GAMES,
   GAME_NAMES,
+  pinpointShown,
   solveKey,
   type ConnectionsPuzzle,
   type CrossclimbPuzzle,
@@ -44,12 +45,27 @@ const HOWTO: Partial<Record<GameId, string>> = {
   wordle: WORDLE_HOWTO,
 };
 
-function detailFor(rec: SolveRecord): string {
+function pinpointDetail(b: PinpointBoard, answer: string, t: string): string {
+  const n = plural(b.guesses.length, 'guess', 'guesses');
+  if (b.answerShown === 'cutoff') return `The answer is ‘${answer}’. ${n}, ${t}.`;
+  if (b.answerShown === 'asked') return `After ${n} and all ${b.cluesSeen} clues, ${t}.`;
+  if (b.guesses.length > b.cluesSeen) return `Got it on guess ${b.guesses.length}, after all ${b.cluesSeen} clues, in ${t}.`;
+  return `Got it on clue ${b.cluesSeen} of 5 in ${t}.`;
+}
+
+function headingFor(rec: SolveRecord): string {
+  const shown = rec.game === 'pinpoint' ? pinpointShown(rec.payload.board) : undefined;
+  if (shown === 'cutoff') return 'You’re cut off.';
+  if (shown === 'asked') return 'Answer revealed';
+  return rec.late ? 'Solved late' : 'Solved on the day';
+}
+
+function detailFor(rec: SolveRecord, pub: PublishedPuzzle): string {
   const { stats, board } = rec.payload;
   const t = fmtTime(stats.ms);
   switch (rec.game) {
     case 'pinpoint':
-      return `Got it on clue ${(board as PinpointBoard).cluesSeen} of 5 in ${t}.`;
+      return pinpointDetail(board as PinpointBoard, (pub.data as PinpointPuzzle).answer, t);
     case 'wordle':
       return `Got it in ${plural((board as WordleBoard).guesses.length, 'guess', 'guesses')}, ${t}.`;
     case 'connections':
@@ -63,13 +79,13 @@ function detailFor(rec: SolveRecord): string {
   }
 }
 
-function resultCard(app: App, n: number, rec: SolveRecord): HTMLElement {
+function resultCard(app: App, n: number, rec: SolveRecord, pub: PublishedPuzzle): HTMLElement {
   const nextGame = ALL_GAMES.find((g) => g !== rec.game && app.days.get(n)?.puzzles[g] && !app.solves.has(solveKey(n, g)));
-  const detail = detailFor(rec);
+  const detail = detailFor(rec, pub);
   return h(
     'div',
     { class: ['result', rec.late && 'late'] },
-    h('h2', null, rec.late ? 'Solved late' : 'Solved on the day'),
+    h('h2', null, headingFor(rec)),
     h('p', null, detail),
     h(
       'div',
@@ -162,7 +178,7 @@ export async function renderPlay(app: App, n: number, game: GameId): Promise<voi
     back,
     h('div', { class: 'playhead' }, h('h1', null, GAME_NAMES[game]), clock),
     h('p', { class: 'howto' }, done ? `Day ${n}, ${longDate(n)}` : HOWTO[game]),
-    done ? resultCard(app, n, done) : null,
+    done ? resultCard(app, n, done, pub) : null,
     view.el,
   );
 }

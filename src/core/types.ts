@@ -114,9 +114,15 @@ export interface WendBoard {
   order: number[];
 }
 export interface PinpointBoard {
+  /** Every guess in order. The last one is the answer, unless `answerShown` is set (then all are misses). */
   guesses: string[];
   cluesSeen: number;
+  /** Set when the game ended by showing the answer: the player asked for it, or ran out of guesses. */
+  answerShown?: 'asked' | 'cutoff';
 }
+
+export const pinpointShown = (board: unknown): PinpointBoard['answerShown'] =>
+  (board as PinpointBoard | null)?.answerShown;
 export interface CrossclimbBoard {
   /** Rung indices from top to bottom as arranged. */
   order: number[];

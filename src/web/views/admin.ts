@@ -2,7 +2,7 @@ import { h, mount, fmtTime } from '../dom.ts';
 import { adminLog, adminReset, adminVoid, getProgress, ApiError } from '../api.ts';
 import { lsDel, lsGet, lsSet } from '../store.ts';
 import { DAY_COUNT } from '../../core/time.ts';
-import { EXPECTED_GAMES, GAME_NAMES, type GameId } from '../../core/types.ts';
+import { EXPECTED_GAMES, GAME_NAMES, pinpointShown, type GameId } from '../../core/types.ts';
 import type { AdminEventView } from '../admin-types.ts';
 
 const TOKEN = 'advent.adminToken';
@@ -12,11 +12,19 @@ const et = (isoTime: string | null) =>
     ? new Date(isoTime).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '';
 
+const SHOWN = { asked: 'asked for the answer', cutoff: 'cut off' } as const;
+/** Pinpoint games that ended by showing the answer. */
+const shownNote = (board: unknown): string | null => {
+  const how = pinpointShown(board);
+  return how ? SHOWN[how] : null;
+};
+
 function detail(e: AdminEventView): string {
   const p = e.payload as Record<string, unknown> | null;
   if (e.type === 'solve' && p && typeof p === 'object') {
     const st = p.stats as { ms?: number; attempts?: number } | undefined;
-    return `${fmtTime(st?.ms ?? 0)}, ${st?.attempts ?? 0} misses, rev ${e.rev}`;
+    const note = shownNote(p.board);
+    return `${fmtTime(st?.ms ?? 0)}, ${st?.attempts ?? 0} misses${note ? `, ${note}` : ''}, rev ${e.rev}`;
   }
   if (e.type === 'void') return `voids ${(p?.ids as number[] | undefined)?.join(', ')}${p?.reason ? `: ${p.reason}` : ''}`;
   if (e.type === 'reset') return `${e.game ?? 'all games'}${p?.reason ? `: ${p.reason}` : ''}`;
@@ -100,7 +108,7 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
                   h('td', null, et(s.tsClient)),
                   h('td', null, s.late ? 'late' : 'yes'),
                   h('td', null, fmtTime(s.payload.stats.ms)),
-                  h('td', null, s.payload.stats.attempts),
+                  h('td', null, s.payload.stats.attempts, shownNote(s.payload.board) ? ` (${shownNote(s.payload.board)})` : null),
                 ),
               ),
             ),

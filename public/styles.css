@@ -1250,3 +1250,25 @@ div.lede p {
   flex: none;
   white-space: nowrap;
 }
+
+/* Pinpoint: offering the answer after the last clue */
+.offer {
+  text-align: center;
+  margin: 4px 0;
+}
+
+.offer .ask p {
+  font-weight: 700;
+}
+
+.offer .ask .bad {
+  color: var(--bad);
+}
+
+.offer .actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}

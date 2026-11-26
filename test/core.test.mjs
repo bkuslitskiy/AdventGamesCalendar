@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import * as time from '../public/js/core/time.js';
-import { judge, singular, validatePinpoint } from '../public/js/core/pinpoint.js';
+import { judge, pinpointCutoff, pinpointStage, singular, validatePinpoint } from '../public/js/core/pinpoint.js';
 import { validateWend, judgeTrace, countPlacements, layout } from '../public/js/core/wend.js';
 import { validateCrossclimb, endFits, isLadder } from '../public/js/core/crossclimb.js';
 import { replay } from '../public/js/core/replay.js';
@@ -51,6 +51,26 @@ test('pinpoint matcher', () => {
   assert.equal(singular('berries'), 'berry');
   assert.equal(singular('glass'), 'glass');
   assert.equal(singular('bus'), 'bus');
+});
+
+test('pinpoint endgame: offer, two more, offer, two more, cut off', () => {
+  const st = (m, d) => pinpointStage(5, m, d);
+  for (let m = 0; m < 5; m++) assert.deepEqual(st(m, 0), { kind: 'clue' });
+  assert.deepEqual(st(5, 0), { kind: 'offer', nth: 1, last: false });
+  assert.deepEqual(st(5, 1), { kind: 'extra', left: 2, final: false });
+  assert.deepEqual(st(6, 1), { kind: 'extra', left: 1, final: false });
+  assert.deepEqual(st(7, 1), { kind: 'offer', nth: 2, last: true });
+  assert.deepEqual(st(7, 2), { kind: 'extra', left: 2, final: true });
+  assert.deepEqual(st(8, 2), { kind: 'extra', left: 1, final: true });
+  assert.deepEqual(st(9, 2), { kind: 'cutoff' });
+  assert.equal(pinpointCutoff(5), 9);
+  // Saved state from before offers existed: passed offers count as declined, a current one is asked.
+  assert.deepEqual(st(5), { kind: 'offer', nth: 1, last: false });
+  assert.deepEqual(st(6), { kind: 'extra', left: 1, final: false });
+  assert.deepEqual(st(8), { kind: 'extra', left: 1, final: true });
+  assert.deepEqual(st(14), { kind: 'cutoff' });
+  // A stale low count can't skip an offer that was already passed.
+  assert.deepEqual(st(6, 0), { kind: 'extra', left: 1, final: false });
 });
 
 test('pinpoint validator runs the puzzle tests', () => {
