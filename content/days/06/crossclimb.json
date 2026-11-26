@@ -1,0 +1,19 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. The minimum: 2 middle rungs.",
+  "length": 4,
+  "rungs": [
+    {
+      "word": "WADE",
+      "clue": "Walk through shallow water"
+    },
+    {
+      "word": "WIDE",
+      "clue": "Broad"
+    }
+  ],
+  "ends": {
+    "top": "WAVE",
+    "bottom": "TIDE",
+    "clue": "What the sea does, again and again"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 5×5, black squares top right and bottom left.",
+  "grid": [
+    "MOSS#",
+    "ATTIC",
+    "SHORE",
+    "SEVEN",
+    "#RENT"
+  ],
+  "clues": {
+    "across": {
+      "1": "What a rolling stone gathers none of",
+      "5": "Storage space under the roof",
+      "7": "Where land meets sea",
+      "8": "Days in a week",
+      "9": "Monthly landlord payment"
+    },
+    "down": {
+      "1": "Physics quantity measured in kilograms",
+      "2": "Not this one",
+      "3": "Kitchen appliance with burners",
+      "4": "Ambulance's wail",
+      "6": "Penny"
+    }
+  }
+}

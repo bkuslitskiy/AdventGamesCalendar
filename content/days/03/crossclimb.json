@@ -1,10 +1,23 @@
 {
-  "draft": true,
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
   "length": 4,
   "rungs": [
-    { "word": "LOSS", "clue": "Defeat" },
-    { "word": "LOSE", "clue": "Misplace" },
-    { "word": "LORE", "clue": "Folk knowledge" }
+    {
+      "word": "LOSS",
+      "clue": "Defeat"
+    },
+    {
+      "word": "LOSE",
+      "clue": "Misplace"
+    },
+    {
+      "word": "LORE",
+      "clue": "Folk knowledge"
+    }
   ],
-  "ends": { "top": "LESS", "bottom": "MORE", "clue": "Opposites in quantity" }
+  "ends": {
+    "top": "LESS",
+    "bottom": "MORE",
+    "clue": "Opposites in quantity"
+  }
 }

@@ -1,0 +1,28 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "grid": [
+    "UOLST",
+    "DMCOB",
+    "SIFRR",
+    "TEZEE"
+  ],
+  "words": [
+    {
+      "word": "CLOUD",
+      "path": [[1, 2], [0, 2], [0, 1], [0, 0], [1, 0]]
+    },
+    {
+      "word": "FROST",
+      "path": [[2, 2], [2, 3], [1, 3], [0, 3], [0, 4]]
+    },
+    {
+      "word": "MIST",
+      "path": [[1, 1], [2, 1], [2, 0], [3, 0]]
+    },
+    {
+      "word": "BREEZE",
+      "path": [[1, 4], [2, 4], [3, 4], [3, 3], [3, 2], [3, 1]]
+    }
+  ],
+  "theme": "Sample: weather"
+}

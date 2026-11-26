@@ -75,6 +75,18 @@ test('pinpoint endgame: offer, two more, offer, two more, cut off', () => {
   assert.deepEqual(st(6, 0), { kind: 'extra', left: 1, final: false });
 });
 
+test('pinpoint matcher: naming one clue plus the answer word is not the link', () => {
+  const jar = { clues: ['Bell', 'Tip', 'Mason', 'Cookie', 'Pickle'], answer: '___ jar' };
+  for (const g of ['jar', 'jars', '___ jar', 'words before jar', 'types of jar']) assert.equal(judge(g, jar), 'correct', g);
+  for (const g of ['mason jar', 'Cookie jars', 'pickle jar', 'tip jar']) assert.equal(judge(g, jar), 'wrong', g);
+  const bridges = { clues: ['Rialto', 'Brooklyn', 'Tower', 'Golden Gate', 'London'], answer: 'Bridges' };
+  assert.equal(judge('famous bridges', bridges), 'correct');
+  assert.equal(judge('london bridges', bridges), 'wrong');
+  assert.equal(judge('golden gate', bridges), 'wrong');
+  // Without clues (older callers), the rule is simply off.
+  assert.equal(judge('mason jar', { answer: '___ jar' }), 'correct');
+});
+
 test('pinpoint matcher: what goes in a container answers for it', () => {
   const yes = [
     ['Things in a toolbox', ['tools', 'Tool', "carpenter's tools", 'Carpenters tools', 'hand tools']],

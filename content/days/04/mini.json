@@ -1,0 +1,26 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 5×5 with all four corners blocked.",
+  "grid": [
+    "#COD#",
+    "TOWEL",
+    "OUNCE",
+    "PLEAD",
+    "#DRY#"
+  ],
+  "clues": {
+    "across": {
+      "1": "Fish in fish and chips, often",
+      "4": "Dish drier",
+      "6": "Sixteenth of a pound",
+      "7": "Beg",
+      "8": "Not wet"
+    },
+    "down": {
+      "1": "Was able to",
+      "2": "Possessor",
+      "3": "Rot",
+      "4": "Spinning toy",
+      "5": "Was in front"
+    }
+  }
+}

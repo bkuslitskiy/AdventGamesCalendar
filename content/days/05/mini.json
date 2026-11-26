@@ -1,0 +1,29 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 6×6 staircase, the biggest mock grid.",
+  "grid": [
+    "###CAP",
+    "##POUR",
+    "#PIANO",
+    "ELECT#",
+    "MUCH##",
+    "USE###"
+  ],
+  "clues": {
+    "across": {
+      "1": "Baseball hat",
+      "4": "Rain hard, or serve coffee",
+      "5": "Instrument with 88 keys",
+      "6": "Vote into office",
+      "7": "A lot",
+      "8": "Put to work"
+    },
+    "down": {
+      "1": "Team leader on the sidelines",
+      "2": "Parent's sister",
+      "3": "Opposite of con",
+      "4": "Chess unit, or a slice of pie",
+      "5": "Addition sign",
+      "6": "Flightless Australian bird"
+    }
+  }
+}

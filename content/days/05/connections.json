@@ -1,0 +1,41 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Red herrings: RAIN / SNOW / HAIL all make ___storm; THUNDER + BOLT.",
+  "groups": [
+    {
+      "name": "Precipitation",
+      "words": [
+        "RAIN",
+        "SNOW",
+        "HAIL",
+        "SLEET"
+      ]
+    },
+    {
+      "name": "Cloud types",
+      "words": [
+        "CIRRUS",
+        "CUMULUS",
+        "STRATUS",
+        "NIMBUS"
+      ]
+    },
+    {
+      "name": "___storm",
+      "words": [
+        "BRAIN",
+        "FIRE",
+        "THUNDER",
+        "SAND"
+      ]
+    },
+    {
+      "name": "Lightning ___",
+      "words": [
+        "BOLT",
+        "ROD",
+        "BUG",
+        "STRIKE"
+      ]
+    }
+  ]
+}

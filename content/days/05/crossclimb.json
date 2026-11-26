@@ -1,0 +1,23 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "length": 4,
+  "rungs": [
+    {
+      "word": "WAND",
+      "clue": "Magician's prop"
+    },
+    {
+      "word": "RAND",
+      "clue": "South African currency"
+    },
+    {
+      "word": "RAID",
+      "clue": "Surprise attack"
+    }
+  ],
+  "ends": {
+    "top": "WIND",
+    "bottom": "RAIN",
+    "clue": "Stormy pair"
+  }
+}

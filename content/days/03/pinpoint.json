@@ -1,7 +1,24 @@
 {
-  "draft": true,
-  "clues": ["Ring", "Red spot", "Morning star", "Dwarf", "Gas giant"],
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "clues": [
+    "Ring",
+    "Red spot",
+    "Morning star",
+    "Dwarf",
+    "Gas giant"
+  ],
   "answer": "Planets",
-  "aliases": ["solar system"],
-  "tests": { "accept": ["planets in the solar system", "planet"], "reject": ["stars", "moons"] }
+  "aliases": [
+    "solar system"
+  ],
+  "tests": {
+    "accept": [
+      "planets in the solar system",
+      "planet"
+    ],
+    "reject": [
+      "stars",
+      "moons"
+    ]
+  }
 }

@@ -1,0 +1,30 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. A fill-in-the-blank answer.",
+  "clues": [
+    "Bell",
+    "Tip",
+    "Mason",
+    "Cookie",
+    "Pickle"
+  ],
+  "answer": "___ jar",
+  "tests": {
+    "accept": [
+      "jar",
+      "jars",
+      "types of jar",
+      "words before jar"
+    ],
+    "reject": [
+      "glass",
+      "containers",
+      "kitchen",
+      "mason jar",
+      "cookie jar",
+      "glass jars"
+    ]
+  },
+  "reject": [
+    "glass jar"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 4×4, no black squares.",
+  "grid": [
+    "WOLF",
+    "AREA",
+    "SCAN",
+    "HANG"
+  ],
+  "clues": {
+    "across": {
+      "1": "Animal that howls at the moon",
+      "5": "Length times width",
+      "6": "Look over quickly",
+      "7": "Put a picture on the wall"
+    },
+    "down": {
+      "1": "Clean with soap and water",
+      "2": "Killer whale",
+      "3": "Tilt, like a tower in Pisa",
+      "4": "Vampire's tooth"
+    }
+  }
+}

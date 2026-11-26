@@ -1,0 +1,24 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 4 rows × 5 columns, not square.",
+  "grid": [
+    "NOISE",
+    "EASEL",
+    "ATLAS",
+    "THEME"
+  ],
+  "clues": {
+    "across": {
+      "1": "Racket",
+      "6": "Painter's stand",
+      "7": "Book of maps",
+      "8": "What each mock day has, loosely"
+    },
+    "down": {
+      "1": "Tidy",
+      "2": "Sworn promise",
+      "3": "Small island",
+      "4": "Where two pieces of fabric meet",
+      "5": "Or ___ (veiled threat)"
+    }
+  }
+}

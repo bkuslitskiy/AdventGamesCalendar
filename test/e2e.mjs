@@ -23,7 +23,9 @@ try {
 }
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DAY = join(ROOT, 'content', 'days', '01');
+/** Which day to play through: E2E_DAY=4 npm run e2e. Defaults to Day 1. */
+const N = Number(process.env.E2E_DAY ?? 1);
+const DAY = join(ROOT, 'content', 'days', String(N).padStart(2, '0'));
 const PORT = Number(process.env.E2E_PORT ?? 8799);
 const BASE = `http://localhost:${PORT}`;
 const SHOTS = process.env.SHOTS ? join(ROOT, process.env.SHOTS) : null;
@@ -89,16 +91,16 @@ try {
   await page.waitForSelector('.month');
   ok(/Early access/.test(await page.textContent('.lede')), 'calendar: early-access message before Dec 1');
   ok((await page.locator('a.door').count()) === 31, 'calendar: every day is open during early access');
-  ok((await page.locator('a.door[href="#/day/1"] .pip').count()) === games.length, `calendar: day 1 has ${games.length} pips`);
+  ok((await page.locator(`a.door[href="#/day/${N}"] .pip`).count()) === games.length, `calendar: day ${N} has ${games.length} pips`);
   await shot('calendar');
-  await page.click('a.door[href="#/day/1"]');
+  await page.click(`a.door[href="#/day/${N}"]`);
   await page.waitForSelector('.games');
-  ok((await page.locator('.games a .name').count()) === games.length, `day 1 lists ${games.length} playable games`);
+  ok((await page.locator('.games a .name').count()) === games.length, `day ${N} lists ${games.length} playable games`);
 
   // ---- Wend: drag each word along its path ----
   if (has('wend')) {
     const p = load('wend');
-    await page.goto(`${BASE}/#/day/1/wend`);
+    await page.goto(`${BASE}/#/day/${N}/wend`);
     await page.waitForSelector('.wend');
     const b = await page.locator('.wend').boundingBox();
     const at = ([r, c]) => [b.x + (c + 0.5) * (b.width / p.grid[0].length), b.y + (r + 0.5) * (b.height / p.grid.length)];
@@ -115,7 +117,7 @@ try {
   // ---- Pinpoint: one miss, then the answer ----
   if (has('pinpoint')) {
     const p = load('pinpoint');
-    await page.goto(`${BASE}/#/day/1/pinpoint`);
+    await page.goto(`${BASE}/#/day/${N}/pinpoint`);
     await page.fill('input[name=guess]', 'zzz nothing like it');
     await page.keyboard.press('Enter');
     await page.locator('.clues li:not(.hidden)').nth(1).waitFor({ timeout: 5000 });
@@ -128,7 +130,7 @@ try {
   // ---- Crossclimb: a miss, fill, arrange, ends ----
   if (has('crossclimb')) {
     const p = load('crossclimb');
-    await page.goto(`${BASE}/#/day/1/crossclimb`);
+    await page.goto(`${BASE}/#/day/${N}/crossclimb`);
     await page.waitForSelector('.ladder');
     await page.click('.rung[data-row="0"] input');
     await page.keyboard.type('Q'.repeat(p.length));
@@ -163,7 +165,7 @@ try {
     const p = load('connections');
     const up = (w) => w.trim().toUpperCase().replace(/\s+/g, ' ');
     const tap = (w) => page.locator('.conn-tile', { hasText: new RegExp(`^${up(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }).click();
-    await page.goto(`${BASE}/#/day/1/connections`);
+    await page.goto(`${BASE}/#/day/${N}/connections`);
     await page.waitForSelector('.conn-grid');
     for (const w of [...p.groups[0].words.slice(0, 3), p.groups[1].words[0]]) await tap(w);
     await page.getByRole('button', { name: 'Submit' }).click();
@@ -184,7 +186,7 @@ try {
   // ---- Mini: type the first entry on the on-screen keys, fill the rest square by square, last one wrong ----
   if (has('mini')) {
     const p = load('mini');
-    await page.goto(`${BASE}/#/day/1/mini`);
+    await page.goto(`${BASE}/#/day/${N}/mini`);
     await page.waitForSelector('.mini');
     const cell = (r, c) => page.locator(`.mcell[data-r="${r}"][data-c="${c}"]`);
     const whites = [];
@@ -221,7 +223,7 @@ try {
     const L = p.answer.length;
     const list = readFileSync(join(ROOT, 'public', 'words.txt'), 'utf8').split('\n').filter((w) => w && !w.startsWith('#'));
     const wrong = list.find((w) => w.length === L && w.toUpperCase() !== p.answer).toUpperCase();
-    await page.goto(`${BASE}/#/day/1/wordle`);
+    await page.goto(`${BASE}/#/day/${N}/wordle`);
     await page.waitForSelector('.wordle');
     await page.keyboard.type('Q'.repeat(L));
     await page.keyboard.press('Enter');
@@ -238,18 +240,18 @@ try {
   }
 
   // ---- Day done, progress on the server, solved views after reload ----
-  await page.goto(`${BASE}/#/day/1`);
+  await page.goto(`${BASE}/#/day/${N}`);
   await page.waitForSelector('.games');
-  ok((await page.locator('.games .state.ontime').count()) === games.length, `day 1: all ${games.length} games marked solved`);
-  if (existsSync(join(DAY, 'day.json')) && load('day').afterword) ok((await page.locator('.afterword').count()) === 1, 'day 1: afterword appears');
+  ok((await page.locator('.games .state.ontime').count()) === games.length, `day ${N}: all ${games.length} games marked solved`);
+  if (existsSync(join(DAY, 'day.json')) && load('day').afterword) ok((await page.locator('.afterword').count()) === 1, `day ${N}: afterword appears`);
   await page.goto(`${BASE}/#/`);
   await page.waitForSelector('.month');
-  ok((await page.locator('a.door[href="#/day/1"].ontime').count()) === 1, 'calendar: day 1 shows solved on the day');
+  ok((await page.locator(`a.door[href="#/day/${N}"].ontime`).count()) === 1, `calendar: day ${N} shows solved on the day`);
   const progress = await page.evaluate(() => fetch('/api/progress').then((r) => r.json()));
   ok(progress.solves.length === games.length, `server log holds ${progress.solves.length} solves for babe`);
   await page.reload();
   for (const g of games) {
-    await page.goto(`${BASE}/#/day/1/${g}`);
+    await page.goto(`${BASE}/#/day/${N}/${g}`);
     await page.waitForSelector('.result');
   }
   ok(true, 'every game reopens in its solved view after a reload');
@@ -261,7 +263,7 @@ try {
   await guest.waitForSelector('.month');
   ok((await guest.locator('a.door.ontime').count()) === 0, 'guest: starts with nothing solved');
   if (has('wordle')) {
-    await guest.goto(`${BASE}/#/day/1/wordle`);
+    await guest.goto(`${BASE}/#/day/${N}/wordle`);
     await guest.waitForSelector('.wordle');
     await guest.keyboard.type(load('wordle').answer);
     await guest.keyboard.press('Enter');
@@ -270,11 +272,11 @@ try {
     ok(after.solves.length === games.length, "guest: a solve doesn't touch babe's log");
   }
   if (has('connections')) {
-    await guest.goto(`${BASE}/#/day/1/connections`);
+    await guest.goto(`${BASE}/#/day/${N}/connections`);
     await guest.waitForSelector('.conn-grid');
     await guest.locator('.conn-tile').first().click();
-    await guest.goto(`${BASE}/#/day/1`);
-    await guest.goto(`${BASE}/#/day/1/connections`);
+    await guest.goto(`${BASE}/#/day/${N}`);
+    await guest.goto(`${BASE}/#/day/${N}/connections`);
     await guest.waitForSelector('.conn-grid');
     ok((await guest.locator('.conn-tile.on').count()) === 1, 'guest: mid-puzzle state survives leaving the page');
   }
@@ -287,7 +289,7 @@ try {
       await pg.keyboard.press('Enter');
       await pg.waitForFunction((n) => document.querySelectorAll('.misses s').length >= n || !!document.querySelector('.result'), i);
     };
-    await guest.goto(`${BASE}/#/day/1/pinpoint`);
+    await guest.goto(`${BASE}/#/day/${N}/pinpoint`);
     for (let i = 1; i <= 5; i++) await miss(guest, i);
     ok((await guest.locator('.offer').count()) === 1 && (await guest.locator('form.guess').count()) === 0, 'pinpoint: a miss on the last clue offers the answer');
     await guest.reload();
@@ -307,15 +309,15 @@ try {
     const t = (await guest.textContent('.result')).replace(/\s+/g, ' ');
     ok(/You’re cut off\./.test(t) && t.includes(`The answer is ‘${p.answer}’.`), `pinpoint: cut off with the answer — ${t}`);
     ok((await guest.locator('.misses s').count()) === 9, 'pinpoint: the cut-off board lists all nine misses');
-    await guest.goto(`${BASE}/#/day/1`);
+    await guest.goto(`${BASE}/#/day/${N}`);
     await guest.waitForSelector('.games');
-    ok(/Revealed/.test(await guest.textContent('.games a[href="#/day/1/pinpoint"] .state')), 'pinpoint: the day page says Revealed');
+    ok(/Revealed/.test(await guest.textContent(`.games a[href="#/day/${N}/pinpoint"] .state`)), 'pinpoint: the day page says Revealed');
 
     const asker = await phone({ viewport: { width: 320, height: 640 } });
     await asker.goto(`${BASE}/`);
     await asker.getByRole('button', { name: 'No' }).click();
     await asker.waitForSelector('.month');
-    await asker.goto(`${BASE}/#/day/1/pinpoint`);
+    await asker.goto(`${BASE}/#/day/${N}/pinpoint`);
     for (let i = 1; i <= 5; i++) await miss(asker, i);
     ok(await asker.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '320px: the pinpoint offer fits');
     await asker.getByRole('button', { name: 'Show me' }).click();
@@ -328,12 +330,12 @@ try {
     const judgeApi = await (async () => {
       const post = (body) => fetch(`${BASE}/api/judge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const health = await fetch(`${BASE}/api/judge`).then((r) => r.json());
-      const words = await post({ day: 1, guess: 'tools' }).then((r) => r.json());
-      const ai = await post({ day: 1, guess: 'fakeyes kit' }).then((r) => r.json());
-      const no = await post({ day: 1, guess: 'zzz' }).then((r) => r.json());
-      const long = (await post({ day: 1, guess: 'x'.repeat(61) })).status;
+      const words = await post({ day: N, guess: p.answer }).then((r) => r.json());
+      const ai = await post({ day: N, guess: 'fakeyes kit' }).then((r) => r.json());
+      const no = await post({ day: N, guess: 'zzz' }).then((r) => r.json());
+      const long = (await post({ day: N, guess: 'x'.repeat(61) })).status;
       const missing = (await post({ day: 9, guess: 'tools' })).status;
-      const raw = await post({ day: 1, guess: 'fakeyes kit' }).then((r) => r.text());
+      const raw = await post({ day: N, guess: 'fakeyes kit' }).then((r) => r.text());
       return { health, words, ai, no, long, missing, raw };
     })();
     ok(judgeApi.health.ai === true, 'judge: GET reports the AI binding');
@@ -347,7 +349,7 @@ try {
     await aiGuest.goto(`${BASE}/`);
     await aiGuest.getByRole('button', { name: 'No' }).click();
     await aiGuest.waitForSelector('.month');
-    await aiGuest.goto(`${BASE}/#/day/1/pinpoint`);
+    await aiGuest.goto(`${BASE}/#/day/${N}/pinpoint`);
     await miss(aiGuest, 1);
     await aiGuest.fill('input[name=guess]', 'fakeyes handyman kit');
     await aiGuest.keyboard.press('Enter');
@@ -370,7 +372,7 @@ try {
   await small.waitForSelector('.month');
   ok(!(await small.evaluate(() => [...document.querySelectorAll('.door')].some((d) => d.scrollWidth > d.clientWidth + 1 || d.scrollHeight > d.clientHeight + 1))), '320px: calendar doors fit');
   if (has('connections')) {
-    await small.goto(`${BASE}/#/day/1/connections`);
+    await small.goto(`${BASE}/#/day/${N}/connections`);
     await small.waitForSelector('.conn-grid');
     const broken = await small.evaluate(() =>
       [...document.querySelectorAll('.conn-tile')].filter((t) => {
@@ -383,7 +385,7 @@ try {
     ok(broken.length === 0, `320px: connections words fit their tiles${broken.length ? ` (not: ${broken.join(', ')})` : ''}`);
   }
   for (const g of ['wordle', 'mini'].filter(has)) {
-    await small.goto(`${BASE}/#/day/1/${g}`);
+    await small.goto(`${BASE}/#/day/${N}/${g}`);
     await small.waitForSelector(g === 'wordle' ? '.wordle' : '.mini');
     ok(await small.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `320px: ${g} fits the screen`);
   }

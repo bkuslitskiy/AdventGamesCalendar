@@ -1,0 +1,41 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Red herrings: MERCURY (element), MARS (planet), GOLD (goldfish), GALAXY / STAR (sky).",
+  "groups": [
+    {
+      "name": "Chemical elements",
+      "words": [
+        "IRON",
+        "NEON",
+        "GOLD",
+        "TIN"
+      ]
+    },
+    {
+      "name": "Planets",
+      "words": [
+        "VENUS",
+        "JUPITER",
+        "NEPTUNE",
+        "MERCURY"
+      ]
+    },
+    {
+      "name": "Chocolate bars",
+      "words": [
+        "MARS",
+        "TWIX",
+        "BOUNTY",
+        "GALAXY"
+      ]
+    },
+    {
+      "name": "___fish",
+      "words": [
+        "STAR",
+        "SWORD",
+        "CAT",
+        "JELLY"
+      ]
+    }
+  ]
+}

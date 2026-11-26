@@ -1,0 +1,41 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Red herrings: WHISK (you beat eggs with it), SAUCE (pasta).",
+  "groups": [
+    {
+      "name": "Kitchen utensils",
+      "words": [
+        "WHISK",
+        "LADLE",
+        "SPATULA",
+        "TONGS"
+      ]
+    },
+    {
+      "name": "Pasta shapes",
+      "words": [
+        "PENNE",
+        "ORZO",
+        "FUSILLI",
+        "RIGATONI"
+      ]
+    },
+    {
+      "name": "___pan",
+      "words": [
+        "PETER",
+        "FRYING",
+        "SAUCE",
+        "DUST"
+      ]
+    },
+    {
+      "name": "Things you can beat",
+      "words": [
+        "EGGS",
+        "DRUM",
+        "RECORD",
+        "TRAFFIC"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 5 letters, 5 middle rungs.",
+  "length": 5,
+  "rungs": [
+    {
+      "word": "FLOOR",
+      "clue": "Walk all over it"
+    },
+    {
+      "word": "FLOOD",
+      "clue": "Too much water"
+    },
+    {
+      "word": "BLOOD",
+      "clue": "Type O, for one"
+    },
+    {
+      "word": "BROOD",
+      "clue": "Sulk"
+    },
+    {
+      "word": "BROAD",
+      "clue": "Wide"
+    }
+  ],
+  "ends": {
+    "top": "FLOUR",
+    "bottom": "BREAD",
+    "clue": "Before and after the oven"
+  }
+}

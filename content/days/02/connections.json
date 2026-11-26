@@ -1,0 +1,41 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Red herrings: BOXER (boxing), HOOK (fishing), HORSE-fly.",
+  "groups": [
+    {
+      "name": "Dog breeds",
+      "words": [
+        "BOXER",
+        "POODLE",
+        "BEAGLE",
+        "PUG"
+      ]
+    },
+    {
+      "name": "Fishing gear",
+      "words": [
+        "LINE",
+        "REEL",
+        "BAIT",
+        "ROD"
+      ]
+    },
+    {
+      "name": "Boxing punches",
+      "words": [
+        "JAB",
+        "HOOK",
+        "CROSS",
+        "UPPERCUT"
+      ]
+    },
+    {
+      "name": "___fly",
+      "words": [
+        "BUTTER",
+        "DRAGON",
+        "FIRE",
+        "HOUSE"
+      ]
+    }
+  ]
+}

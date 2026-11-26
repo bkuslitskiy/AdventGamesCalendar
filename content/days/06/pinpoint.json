@@ -1,0 +1,23 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "clues": [
+    "Taco",
+    "Peanut",
+    "Egg",
+    "Turtle",
+    "Oyster"
+  ],
+  "answer": "Things with shells",
+  "tests": {
+    "accept": [
+      "shells",
+      "shell",
+      "things that have shells"
+    ],
+    "reject": [
+      "seafood",
+      "food",
+      "animals"
+    ]
+  }
+}

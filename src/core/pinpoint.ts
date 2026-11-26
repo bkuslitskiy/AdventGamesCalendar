@@ -111,14 +111,18 @@ export function contentsOf(target: string): Contents[] {
   return out;
 }
 
-/** Close, or the guess contains every answer token with at most two extra. A container's contents stand in for it. */
-function loose(guess: string, target: string): boolean {
+/**
+ * Close, or the guess contains every answer token with at most two extra. A container's contents stand in for it.
+ * An extra word that is a clue's word disqualifies: "mason jar" names one clue, not the link "___ jar".
+ */
+function loose(guess: string, target: string, clueWords: Set<string> = new Set()): boolean {
   if (close(guess, target)) return true;
   const t = new Set(tokens(target));
   if (t.size === 0) return false;
   const inside = contentsOf(target);
   const g = new Set(tokens(guess).flatMap((x) => inside.find((c) => c.part === x)?.covers ?? [x]));
-  return [...t].every((x) => g.has(x)) && g.size - t.size <= 2;
+  const extra = [...g].filter((x) => !t.has(x));
+  return [...t].every((x) => g.has(x)) && extra.length <= 2 && !extra.some((x) => clueWords.has(x));
 }
 
 export type Verdict = 'correct' | 'wrong';
@@ -135,11 +139,12 @@ export function blocksAi(guess: string, p: Pick<PinpointPuzzle, 'ai' | 'reject' 
   return [...(p.reject ?? []), ...(p.tests?.reject ?? [])].some((r) => close(guess, r));
 }
 
-export function judge(guess: string, p: Pick<PinpointPuzzle, 'answer' | 'aliases' | 'reject'>): Verdict {
+export function judge(guess: string, p: Pick<PinpointPuzzle, 'answer' | 'aliases' | 'reject'> & { clues?: string[] }): Verdict {
   if (tokens(guess).length === 0) return 'wrong';
   if ((p.reject ?? []).some((r) => close(guess, r))) return 'wrong';
-  if (loose(guess, p.answer)) return 'correct';
-  if ((p.aliases ?? []).some((a) => loose(guess, a))) return 'correct';
+  const clueWords = new Set((p.clues ?? []).flatMap(tokens));
+  if (loose(guess, p.answer, clueWords)) return 'correct';
+  if ((p.aliases ?? []).some((a) => loose(guess, a, clueWords))) return 'correct';
   return 'wrong';
 }
 

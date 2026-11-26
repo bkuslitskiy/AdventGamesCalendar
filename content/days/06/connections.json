@@ -1,0 +1,41 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Red herring: STERN (boat part).",
+  "groups": [
+    {
+      "name": "Sea creatures",
+      "words": [
+        "OCTOPUS",
+        "SQUID",
+        "CRAB",
+        "LOBSTER"
+      ]
+    },
+    {
+      "name": "Parts of a boat",
+      "words": [
+        "BOW",
+        "HULL",
+        "DECK",
+        "KEEL"
+      ]
+    },
+    {
+      "name": "Serious",
+      "words": [
+        "GRAVE",
+        "SOLEMN",
+        "STERN",
+        "SEVERE"
+      ]
+    },
+    {
+      "name": "Sea___",
+      "words": [
+        "HORSE",
+        "WEED",
+        "SICK",
+        "GULL"
+      ]
+    }
+  ]
+}

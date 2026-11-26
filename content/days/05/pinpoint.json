@@ -1,0 +1,27 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "clues": [
+    "Potato",
+    "Needle",
+    "Hurricane",
+    "Peacock feather",
+    "Spider"
+  ],
+  "answer": "Things with eyes",
+  "tests": {
+    "accept": [
+      "eyes",
+      "eye",
+      "things that have eyes"
+    ],
+    "reject": [
+      "vision",
+      "storms",
+      "animals",
+      "eye of the storm"
+    ]
+  },
+  "reject": [
+    "eye of the storm"
+  ]
+}

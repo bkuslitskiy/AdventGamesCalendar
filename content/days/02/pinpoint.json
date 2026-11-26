@@ -1,6 +1,22 @@
 {
-  "draft": true,
-  "clues": ["Rialto", "Brooklyn", "Tower", "Golden Gate", "London"],
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "clues": [
+    "Rialto",
+    "Brooklyn",
+    "Tower",
+    "Golden Gate",
+    "London"
+  ],
   "answer": "Bridges",
-  "tests": { "accept": ["famous bridges", "bridge"], "reject": ["rivers", "cities"] }
+  "tests": {
+    "accept": [
+      "famous bridges",
+      "bridge"
+    ],
+    "reject": [
+      "rivers",
+      "cities",
+      "london bridges"
+    ]
+  }
 }
