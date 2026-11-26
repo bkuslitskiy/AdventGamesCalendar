@@ -91,6 +91,8 @@ try {
   await page.waitForSelector('.month');
   ok(/Early access/.test(await page.textContent('.lede')), 'calendar: early-access message before Dec 1');
   ok((await page.locator('a.door').count()) === 31, 'calendar: every day is open during early access');
+  const assets = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((u) => /\/js\/|styles\.css/.test(u)));
+  ok(assets.length > 10 && assets.every((u) => u.includes('?v=')), `cache: every module and the stylesheet load at a per-build URL (${assets.length})`);
   ok((await page.locator(`a.door[href="#/day/${N}"] .pip`).count()) === games.length, `calendar: day ${N} has ${games.length} pips`);
   await shot('calendar');
   await page.click(`a.door[href="#/day/${N}"]`);

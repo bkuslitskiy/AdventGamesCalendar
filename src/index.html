@@ -14,8 +14,10 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..1000,0..1,0..1,0..1&display=swap"
     />
-    <link rel="stylesheet" href="/styles.css" />
-    <script type="module" src="/js/web/main.js"></script>
+    <link rel="stylesheet" href="/styles.css?v=%BUILD%" />
+    <!-- Template: `npm run build` writes public/index.html from this, with %BUILD% and the import map filled in. -->
+    <!-- importmap -->
+    <script type="module" src="/js/web/main.js?v=%BUILD%"></script>
   </head>
   <body>
     <main id="app" aria-live="polite"></main>
