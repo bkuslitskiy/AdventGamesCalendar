@@ -34,11 +34,11 @@ ADVENT_NOW=2026-12-03T15:00:00Z npm run dev   # freeze the clock to play-test a 
 npm run e2e                                # plays all of Day 1 in a headless browser (see below)
 ```
 
-The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over.
+The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
 
 **Early access (testing before Dec 1).** Until Day 1 opens, every day can be opened and played, so the whole flow can be tested now. It's on by default wherever drafts are bundled (`npm run dev`, preview branches) and off in production. `ADVENT_EARLY_ACCESS=1` turns it on anywhere (production included), `0` turns it off. It switches itself off at midnight on Dec 1 regardless. Solves made during early access are real events: if you test as babe on production, reset those days from the admin page before Dec 1.
 
-**Browser test.** `npm run e2e` starts its own dev server (in-memory database, clock frozen on Nov 28, early access on) and solves every Day 1 game through the UI on a phone-sized screen, with a deliberate mistake in each. It also checks guest isolation, saved mid-puzzle state and the 320px layout. It reads the puzzles from `content/days/01`, so it keeps working once the mocks are replaced. It needs Playwright, which isn't a dependency: run `npm i --no-save playwright && npx playwright install chromium` once. `SHOTS=.dev/shots npm run e2e` also saves screenshots. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
+**Browser test.** `npm run e2e` starts its own dev server (in-memory database, clock frozen on Nov 28, early access on) and solves every Day 1 game through the UI on a phone-sized screen, with a deliberate mistake in each. It also checks guest isolation, saved mid-puzzle state and the 320px layout. It reads the puzzles from `content/days/01`, so it keeps working once the mocks are replaced. It needs Playwright, which isn't a dependency: run `npm i --no-save playwright && npx playwright install chromium` once. `SHOTS=.dev/shots npm run e2e` also saves screenshots.
 
 ## Writing puzzles
 
