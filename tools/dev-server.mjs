@@ -4,7 +4,7 @@
  * in .dev/functions, and backs env.DB with node:sqlite (Node ≥ 22.5). Run via `npm run dev`.
  *
  *   PORT=8788  ADMIN_TOKEN=dev  ADVENT_NOW=2026-12-03T15:00:00Z  NTFY_URL=...  DB_FILE=.dev/advent.sqlite (or :memory:)
- *   ADVENT_EARLY_ACCESS=0|1  (unset: on, because dev builds include drafts; every day opens until Dec 1)
+ *   ADVENT_EARLY_ACCESS=0  (early access, every day open until Dec 1, is on unless this is 0)
  */
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';

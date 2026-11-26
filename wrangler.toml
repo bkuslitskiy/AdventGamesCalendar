@@ -1,4 +1,4 @@
-name = "advent"
+name = "adventgamescalendar" # the Cloudflare Pages project; the D1 databases keep their names
 pages_build_output_dir = "public"
 compatibility_date = "2026-11-01"
 
@@ -20,5 +20,5 @@ migrations_dir = "migrations"
 #   ADMIN_TOKEN  bearer token for /#/admin and /api/admin/*
 #   NTFY_URL     full ntfy topic URL for solve pings, e.g. https://ntfy.sh/<random-topic>
 #   ADVENT_NOW   optional, preview only: pretend the clock reads this ISO time (play-testing)
-#   ADVENT_EARLY_ACCESS  optional: "1" opens every day until Dec 1, "0" keeps the gate.
-#                        Unset, it is on for preview branches (drafts bundled) and off on main.
+#   ADVENT_EARLY_ACCESS  optional: early access (every day open until Dec 1) is on everywhere;
+#                        set "0" to keep the normal gate. It ends by itself at midnight ET on Dec 1.

@@ -36,7 +36,7 @@ npm run e2e                                # plays all of Day 1 in a headless br
 
 The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
 
-**Early access (testing before Dec 1).** Until Day 1 opens, every day can be opened and played, so the whole flow can be tested now. It's on by default wherever drafts are bundled (`npm run dev`, preview branches) and off in production. `ADVENT_EARLY_ACCESS=1` turns it on anywhere (production included), `0` turns it off. It switches itself off at midnight on Dec 1 regardless. Solves made during early access are real events: if you test as babe on production, reset those days from the admin page before Dec 1.
+**Early access (testing before Dec 1).** Until Day 1 opens, every day can be opened and played, so the whole flow can be tested now. It's on everywhere, production included; `ADVENT_EARLY_ACCESS=0` turns it off. It switches itself off at midnight ET on Dec 1 regardless. While it's on, anyone with the URL (babe included) can open every day that has published puzzles. Solves made during early access are real events: if you test as babe on production, reset those days from the admin page before Dec 1.
 
 **Browser test.** `npm run e2e` starts its own dev server (in-memory database, clock frozen on Nov 28, early access on) and solves every Day 1 game through the UI on a phone-sized screen, with a deliberate mistake in each. It also checks guest isolation, saved mid-puzzle state and the 320px layout. It reads the puzzles from `content/days/01`, so it keeps working once the mocks are replaced. It needs Playwright, which isn't a dependency: run `npm i --no-save playwright && npx playwright install chromium` once. `SHOTS=.dev/shots npm run e2e` also saves screenshots.
 
@@ -88,9 +88,9 @@ npm run validate
 
 1. `npx wrangler d1 create advent` and `npx wrangler d1 create advent-preview`, then put both ids in `wrangler.toml`.
 2. `npm run db:prod` and `npm run db:preview` apply `migrations/` remotely.
-3. Create a Pages project from the GitHub repo: framework preset none, build command `npm run build`, output `public` (read from `wrangler.toml`). The Node version comes from `.node-version`.
-4. Set the secrets for production, and for preview if you want admin there: `ADMIN_TOKEN` (long random string) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). On preview only, `ADVENT_NOW` freezes the clock for play-testing. `ADVENT_EARLY_ACCESS` (see above) needs no setting unless you want it on in production.
-5. In Pages, go to Custom domains and add `advent.useless.blog`. Only then create `CNAME advent → <project>.pages.dev` wherever useless.blog's DNS lives.
+3. Create a Pages project named `adventgamescalendar` from the GitHub repo: framework preset none, build command `npm run build`, output `public` (read from `wrangler.toml`). The Node version comes from `.node-version`.
+4. Set the secrets for production, and for preview if you want admin there: `ADMIN_TOKEN` (long random string) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). On preview only, `ADVENT_NOW` freezes the clock for play-testing. `ADVENT_EARLY_ACCESS=0` turns early access off (see above).
+5. In Pages, go to Custom domains and add `advent.useless.blog`. Only then create `CNAME advent → adventgamescalendar.pages.dev` wherever useless.blog's DNS lives (on Cloudflare DNS, Pages creates it for you).
 6. Check that `https://advent.useless.blog/robots.txt` disallows everything and that responses carry `X-Robots-Tag: noindex`.
 
 ## Admin
