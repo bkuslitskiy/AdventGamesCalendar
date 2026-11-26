@@ -1,6 +1,6 @@
 import type { Handler } from '../../server/types.ts';
 import { isAdmin, json, nowMs } from '../../server/http.ts';
-import { earlyAccess, gamesFor } from '../../server/content.ts';
+import { BUILT_AT, earlyAccess, gamesFor } from '../../server/content.ts';
 import { DAY_COUNT, dayOpen, earlyActive, iso, opensAt, todayN } from '../../src/core/time.ts';
 import { EXPECTED_GAMES, type StateResponse } from '../../src/core/types.ts';
 
@@ -18,6 +18,7 @@ export const onRequestGet: Handler = ({ request, env }) => {
     today: todayN(now),
     early: earlyActive(now, early),
     expected: EXPECTED_GAMES,
+    build: BUILT_AT,
     days: Array.from({ length: DAY_COUNT }, (_, i) => {
       const n = i + 1;
       const open = preview || dayOpen(n, now, early);

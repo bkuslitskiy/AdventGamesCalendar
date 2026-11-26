@@ -110,6 +110,7 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss". A Pi
 ## Behaviour notes
 
 - **"Are you babe?":** Yes stores `advent.role=babe` plus a device id, and progress goes to the server. No plays guest mode in localStorage, wipeable from the banner. Nothing stops a stranger from tapping Yes; the log plus void is the recovery path.
+- **Updates reach open tabs:** every build stamps the same id into the browser code (`public/js/web/build.js`) and `/api/state` (`build`). A tab running older code reloads itself when it goes back to the calendar or opens a day or game, after saving any puzzle in progress, at most once per deploy. A game being played is left alone until the next page change. `/js/*` is served `no-cache` so the reload gets the new code.
 - **Mid-puzzle state:** stays on the device. Only finished solves sync. Offline solves queue in an outbox and send on the next load.
 - **Lateness:** compares the solve time, on a device clock synced to the server, with the puzzle's deadline. That's the end of its day in New York, or the stamped `deadline`.
 - **Calendar states:** not open, puzzles left, solved late, or solved on the day. One pip per game.

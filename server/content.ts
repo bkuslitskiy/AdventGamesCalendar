@@ -1,4 +1,5 @@
 import { CONTENT } from './content.generated.ts';
+export { BUILT_AT } from './content.generated.ts';
 import type { Env } from './types.ts';
 import type { DayContent, GameId, PublishedPuzzle } from '../src/core/types.ts';
 import { ALL_GAMES } from '../src/core/types.ts';

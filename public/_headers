@@ -5,3 +5,7 @@
 
 /words.txt
   Cache-Control: public, max-age=86400
+
+# The app's code: always revalidate, so a reload after a deploy gets the new modules.
+/js/*
+  Cache-Control: no-cache

@@ -189,6 +189,8 @@ export interface StateResponse {
   early: boolean;
   days: StateDay[];
   expected: GameId[];
+  /** Deploy stamp. An open tab whose code has a different one reloads to pick up the new deploy. */
+  build?: string;
 }
 
 export interface DayResponse {

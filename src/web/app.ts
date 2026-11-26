@@ -1,6 +1,7 @@
 import { getDay, getState } from './api.ts';
 import { previewToken, storeFor, type Role, type Store } from './store.ts';
 import type { DayResponse, SolveKey, SolveRecord, StateResponse } from '../core/types.ts';
+import { BUILD } from './build.ts';
 
 export interface App {
   root: HTMLElement;
@@ -14,11 +15,41 @@ export interface App {
 }
 
 const STATE_CACHE = 'advent.state';
+const RELOADED_FOR = 'advent.reloadedFor';
+let lastCheck = 0;
+
+/**
+ * The server runs a newer deploy than this page's code: reload to pick it up (code and puzzle content).
+ * At most once per new build per tab, so a cached bundle can't loop. Callers save in-progress state first.
+ */
+function reloadIfStale(s: StateResponse): boolean {
+  lastCheck = Date.now();
+  if (!s.build || BUILD === 'dev' || s.build === BUILD) return false;
+  try {
+    if (sessionStorage.getItem(RELOADED_FOR) === s.build) return false;
+    sessionStorage.setItem(RELOADED_FOR, s.build);
+  } catch {
+    return false;
+  }
+  location.reload();
+  return true;
+}
+
+/** Ask the server which deploy is live (at most every `minGapMs`) and reload if it's newer. Never throws. */
+export async function reloadIfUpdated(minGapMs = 15_000): Promise<boolean> {
+  if (Date.now() - lastCheck < minGapMs) return false;
+  try {
+    return reloadIfStale(await getState(previewToken() ?? undefined));
+  } catch {
+    return false;
+  }
+}
 
 async function loadState(): Promise<StateResponse> {
   try {
     const s = await getState(previewToken() ?? undefined);
     localStorage.setItem(STATE_CACHE, JSON.stringify(s));
+    reloadIfStale(s);
     return s;
   } catch (e) {
     const cached = localStorage.getItem(STATE_CACHE);

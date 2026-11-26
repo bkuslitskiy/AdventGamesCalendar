@@ -365,6 +365,34 @@ try {
     ok(/"aiAccepted":true/.test(board), 'pinpoint: the solve records that the AI accepted it');
   }
 
+  // ---- A newer deploy reloads an open tab, once ----
+  {
+    const tab = await phone();
+    await tab.goto(`${BASE}/`);
+    await tab.getByRole('button', { name: 'No' }).click();
+    await tab.waitForSelector('.month');
+    await tab.goto(`${BASE}/#/day/${N}`);
+    await tab.waitForSelector('.games');
+    ok(!(await tab.evaluate(() => sessionStorage.getItem('advent.reloadedFor'))), 'update: the current deploy never reloads');
+    await tab.evaluate(() => (window.__sameLoad = true));
+    await tab.route('**/api/state*', async (r) => {
+      const res = await r.fetch();
+      await r.fulfill({ response: res, json: { ...(await res.json()), build: 'newer-deploy' } });
+    });
+    await tab.click('a.back');
+    await tab.waitForFunction(() => !window.__sameLoad, null, { timeout: 5000 });
+    await tab.waitForSelector('.month');
+    ok((await tab.evaluate(() => sessionStorage.getItem('advent.reloadedFor'))) === 'newer-deploy', 'update: a newer deploy reloads the open tab');
+    await tab.evaluate(() => (window.__sameLoad = true));
+    await tab.goto(`${BASE}/#/day/${N}`);
+    await tab.waitForSelector('.games');
+    await tab.click('a.back');
+    await tab.waitForSelector('.month');
+    await tab.waitForTimeout(300);
+    ok(await tab.evaluate(() => window.__sameLoad === true), 'update: only once per deploy, so a stale cache can\'t loop');
+    await tab.unroute('**/api/state*');
+  }
+
   // ---- Small phone layout ----
   const small = await phone({ viewport: { width: 320, height: 640 } });
   await small.goto(`${BASE}/`);

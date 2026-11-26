@@ -1,5 +1,5 @@
 import { h, mount } from './dom.ts';
-import { makeApp, type App } from './app.ts';
+import { makeApp, reloadIfUpdated, type App } from './app.ts';
 import { deviceId, getRole, identify, setRole } from './store.ts';
 import { renderGate } from './views/gate.ts';
 import { renderCalendar } from './views/calendar.ts';
@@ -50,6 +50,9 @@ async function route(): Promise<void> {
     }
     if (!app || app.role !== role) app = await makeApp(root, role);
     const m = /^#\/day\/(\d+)(?:\/([a-z]+))?/.exec(hash);
+    // The calendar checks for a newer deploy as it refreshes; day and game pages check here (the puzzle
+    // being left has already saved its progress above).
+    if (m && (await reloadIfUpdated())) return;
     if (m) {
       const n = Number(m[1]);
       if (m[2] && isGameId(m[2])) await renderPlay(app, n, m[2]);
@@ -63,8 +66,11 @@ async function route(): Promise<void> {
 }
 
 window.addEventListener('hashchange', () => void route());
-// Coming back to the tab after a while: re-read the clock and progress on the calendar.
+// Coming back to the tab after a while: re-read the clock and progress on the calendar, and pick up a
+// newer deploy on a day page. A game in progress is left alone; the next page change picks it up.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && app && (location.hash === '' || location.hash === '#/')) void route();
+  if (document.visibilityState !== 'visible' || !app) return;
+  if (location.hash === '' || location.hash === '#/') void route();
+  else if (/^#\/day\/\d+$/.test(location.hash)) void reloadIfUpdated(0);
 });
 void route();
