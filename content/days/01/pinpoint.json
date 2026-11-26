@@ -1,5 +1,4 @@
 {
-  "draft": true,
   "clues": ["Wrench", "Level", "Tape", "Pliers", "Hammer"],
   "answer": "Things in a toolbox",
   "reject": ["tools"],
