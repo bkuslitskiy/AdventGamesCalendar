@@ -914,6 +914,100 @@ div.lede p {
   animation: flip 0.35s ease both;
 }
 
+/* ---- Hashtag ---- */
+
+.hashtag {
+  --gap: 8px;
+  --tile: min(60px, calc((min(100vw, 560px) - 32px - 4 * var(--gap)) / 5));
+  display: grid;
+  gap: var(--gap);
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hrow {
+  display: flex;
+  gap: var(--gap);
+}
+
+.hblank,
+.htile {
+  width: var(--tile);
+  aspect-ratio: 1;
+}
+
+.htile {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-variation-settings: var(--mono);
+  font-weight: 800;
+  font-size: calc(var(--tile) * 0.52);
+  line-height: 1;
+  cursor: grab;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.htile.hit {
+  background: var(--hit);
+  border-color: var(--hit);
+  color: #1a2a70;
+  cursor: default;
+}
+
+.htile.near {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a2a70;
+}
+
+.htile.miss {
+  background: color-mix(in srgb, var(--ink-faint) 55%, var(--paper));
+  color: var(--ink);
+}
+
+.htile.on,
+.htile.lift {
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--pink);
+  transform: translate(-2px, -2px);
+}
+
+.htile.over {
+  border: 2px dashed var(--pink);
+}
+
+@keyframes hpop {
+  50% {
+    transform: scale(0.88);
+  }
+}
+
+.htile.fresh {
+  animation: hpop 0.22s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .htile.fresh {
+    animation: none;
+  }
+}
+
+.hash-count {
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  margin: 14px 0 0;
+}
+
+.hash-count.over {
+  color: var(--bad);
+}
+
 /* ---- Connections ---- */
 
 .conn-found {

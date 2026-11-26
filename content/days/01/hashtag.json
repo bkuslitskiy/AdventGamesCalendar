@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. The usual setup: 4 squares start green, 8 swaps at best.",
+  "across": ["BRACE", "PLIER"],
+  "down": ["DRILL", "SCREW"],
+  "start": [
+    "#D#R#",
+    "IPLIE",
+    "#S#B#",
+    "RCLAR",
+    "#E#W#"
+  ],
+  "theme": "Sample: toolbox"
+}

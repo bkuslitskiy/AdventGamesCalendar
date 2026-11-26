@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. 3 squares start green, 9 swaps at best.",
+  "across": ["BEACH", "ORCAS"],
+  "down": ["PEARL", "OCEAN"],
+  "start": [
+    "#A#E#",
+    "SCEPH",
+    "#A#L#",
+    "OBNOR",
+    "#A#C#"
+  ],
+  "theme": "Sample: the sea"
+}

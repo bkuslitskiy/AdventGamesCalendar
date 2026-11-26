@@ -33,7 +33,8 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const has = (g) => existsSync(join(DAY, `${g}.json`));
 const load = (g) => JSON.parse(readFileSync(join(DAY, `${g}.json`), 'utf8'));
-const ORDER = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle'];
+const ORDER = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle', 'hashtag'];
+const hash = await import(new URL('../public/js/core/hashtag.js', import.meta.url));
 const games = ORDER.filter(has);
 
 // ---- tiny runner ----
@@ -241,6 +242,48 @@ try {
     await solvedCard('wordle');
   }
 
+  // ---- Hashtag: a locked green, one wasted swap by dragging, then the fewest swaps by tapping ----
+  if (has('hashtag')) {
+    const p = load('hashtag');
+    const target = hash.solution(p);
+    let tiles = hash.startTiles(p);
+    const sq = (i) => page.locator(`.htile[data-i="${i}"]`);
+    await page.goto(`${BASE}/#/day/${N}/hashtag`);
+    await page.waitForSelector('.hashtag');
+    ok((await page.locator('.htile').count()) === 16, 'hashtag: 16 letter squares');
+    ok((await page.textContent('.hash-count')).includes(`${hash.PAR} of ${hash.PAR} swaps left`), 'hashtag: starts with every swap left');
+    const startMarks = hash.marks(target, tiles);
+    ok((await page.locator('.htile.hit').count()) === startMarks.filter((m) => m === 'hit').length, 'hashtag: start greens match the rules');
+    const open = startMarks.map((m, i) => (m === 'hit' ? -1 : i)).filter((i) => i >= 0);
+    const pair = open.flatMap((a) => open.map((b) => [a, b])).find(([a, b]) => a < b && tiles[a] !== tiles[b] && hash.wasted(target, tiles, hash.swap(tiles, a, b)));
+    if (pair) {
+      const [a, b] = pair;
+      const ba = await sq(a).boundingBox();
+      const bb = await sq(b).boundingBox();
+      await page.mouse.move(ba.x + ba.width / 2, ba.y + ba.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2, { steps: 8 });
+      await page.mouse.up();
+      tiles = hash.swap(tiles, a, b);
+      ok((await sq(a).textContent()) === tiles[a] && (await sq(b).textContent()) === tiles[b], 'hashtag: dragging one letter onto another swaps them');
+      ok((await page.textContent('.hash-count')).includes(`${hash.PAR - 1} of ${hash.PAR}`), 'hashtag: the swap is counted');
+    }
+    for (const [a, b] of hash.solve(target, tiles)) {
+      await sq(a).click();
+      await sq(b).click();
+      tiles = hash.swap(tiles, a, b);
+    }
+    await solvedCard('hashtag');
+    const best = hash.fewestSwaps(target, hash.startTiles(p));
+    const detail = await page.textContent('.result p');
+    ok(pair ? detail.includes(`the fewest is ${best}`) : detail.includes('the fewest possible'), `hashtag: result compares with the fewest swaps — ${detail}`);
+    ok((await page.locator('.htile.hit').count()) === 16, 'hashtag: solved view is all green');
+    if (pair) {
+      const rec = (await page.evaluate(() => fetch('/api/progress').then((r) => r.json()))).solves.find((s) => s.game === 'hashtag');
+      ok(rec?.payload.stats.attempts >= 1, `hashtag: the wasted swap is logged as a miss (${rec?.payload.stats.attempts})`);
+    }
+  }
+
   // ---- Day done, progress on the server, solved views after reload ----
   await page.goto(`${BASE}/#/day/${N}`);
   await page.waitForSelector('.games');
@@ -281,6 +324,16 @@ try {
     await guest.goto(`${BASE}/#/day/${N}/connections`);
     await guest.waitForSelector('.conn-grid');
     ok((await guest.locator('.conn-tile.on').count()) === 1, 'guest: mid-puzzle state survives leaving the page');
+  }
+
+  if (has('hashtag')) {
+    await guest.goto(`${BASE}/#/day/${N}/hashtag`);
+    await guest.waitForSelector('.hashtag');
+    await guest.locator('.htile:not(.hit)').first().click();
+    await guest.goto(`${BASE}/#/day/${N}`);
+    await guest.goto(`${BASE}/#/day/${N}/hashtag`);
+    await guest.waitForSelector('.hashtag');
+    ok((await guest.locator('.htile.on').count()) === 1, 'hashtag: a picked letter survives leaving the page');
   }
 
   // ---- Pinpoint's ending: offer, two more, offer, two more, cut off (as guest) ----
@@ -414,9 +467,9 @@ try {
     );
     ok(broken.length === 0, `320px: connections words fit their tiles${broken.length ? ` (not: ${broken.join(', ')})` : ''}`);
   }
-  for (const g of ['wordle', 'mini'].filter(has)) {
+  for (const g of ['wordle', 'mini', 'hashtag'].filter(has)) {
     await small.goto(`${BASE}/#/day/${N}/${g}`);
-    await small.waitForSelector(g === 'wordle' ? '.wordle' : '.mini');
+    await small.waitForSelector({ wordle: '.wordle', mini: '.mini', hashtag: '.hashtag' }[g]);
     ok(await small.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `320px: ${g} fits the screen`);
   }
 

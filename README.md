@@ -1,6 +1,6 @@
 # Advent
 
-Six puzzles a day (Wend, Pinpoint, Crossclimb, Connections, Mini and Wordle), Dec 1–31 2026, at advent.useless.blog. Each day opens at midnight New York time. One real player (babe) writes progress to the server; anyone else plays in their own browser.
+Seven puzzles a day (Wend, Pinpoint, Crossclimb, Connections, Mini, Wordle and Hashtag), Dec 1–31 2026, at advent.useless.blog. Each day opens at midnight New York time. One real player (babe) writes progress to the server; anyone else plays in their own browser.
 
 ## Stack
 
@@ -12,13 +12,13 @@ Six puzzles a day (Wend, Pinpoint, Crossclimb, Connections, Mini and Wordle), De
 - **Dependencies:** TypeScript (dev) and nothing else.
 
 ```text
-src/core/        shared rules: time + lateness, Wend, Pinpoint matcher, Crossclimb, Connections, Mini, Wordle, replay, calendar status
+src/core/        shared rules: time + lateness, Wend, Pinpoint matcher, Crossclimb, Connections, Mini, Wordle, Hashtag, replay, calendar status
 src/web/         the app: views/, games/ (+ the on-screen keyboard), store (babe/guest/preview), api client
 src/index.html   page template; `npm run build` writes public/index.html from it (per-build asset URLs)
 functions/api/   state, day/[n], progress, events, judge, admin/{log,void,reset}
 server/          D1 access, content lookup, http helpers, AI judge (content.generated.ts is built)
-content/days/    01/ … 31/  →  wend.json  pinpoint.json  crossclimb.json  connections.json  mini.json  wordle.json  day.json
-tools/           content.mjs (validate/build), wend-layout.mjs, dev-server.mjs
+content/days/    01/ … 31/  →  wend.json  pinpoint.json  crossclimb.json  connections.json  mini.json  wordle.json  hashtag.json  day.json
+tools/           content.mjs (validate/build), wend-layout.mjs, hashtag-layout.mjs, dev-server.mjs
 migrations/      D1 schema
 public/words.txt Wordle guess list (4–7 letters, SCOWL; licence in words-LICENSE.txt)
 test/            node:test unit tests for src/core, plus e2e.mjs (browser play-through of Day 1)
@@ -78,6 +78,19 @@ The **AI judge** sees the clues, answer, aliases and guess, and says yes or no. 
 { "answer": "BRISK" }
 ```
 
+**Hashtag.** Two five-letter words `across` (rows 2 and 4) and two `down` (columns 2 and 4), crossing at their 2nd and 4th letters, plus a `start`: the board scrambled, five rows of five with `#` off the grid. The player swaps two letters at a time until every square is green; green squares are locked. Par is 12 swaps, and running past it never ends the game. The validator checks the crossings, that `start` holds exactly the solution's letters, and that it can be solved in 12. An optional `theme` shows once it's solved. Have the tool make the scramble, and find words that fit:
+
+```sh
+npm run hashtag -- --across jolly,? --down ?,elves                      # list fills from public/words.txt
+npm run hashtag -- --across jolly,boxes --down cocoa,elves --theme "…" > content/days/07/hashtag.json
+```
+
+`--greens` (default 4) squares start in place and the scramble needs exactly `--swaps` (default 8) at best. It prints the board to the terminal with each square's colour, and the JSON as a draft. Lots of repeated letters make high `--swaps` hard to hit; the tool says so. A miss is a swap that gets no closer: the fewest swaps left didn't drop. A swap can turn nothing green and still be on a best path, so that's not a miss.
+
+```json
+{ "across": ["JOLLY", "BOXES"], "down": ["COCOA", "ELVES"], "start": ["#S#O#", "XELAY", "#C#C#", "OJBLS", "#E#V#"] }
+```
+
 **`day.json`** holds an optional `afterword`, shown once every game that day is solved.
 
 Before every push:
@@ -116,8 +129,8 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss". A Pi
 - **Mid-puzzle state:** stays on the device. Only finished solves sync. Offline solves queue in an outbox and send on the next load.
 - **Lateness:** compares the solve time, on a device clock synced to the server, with the puzzle's deadline. That's the end of its day in New York, or the stamped `deadline`.
 - **Calendar states:** not open, puzzles left, solved late, or solved on the day. One pip per game.
-- **No fail states:** Wordle adds rows after the sixth, and Connections counts mistakes without ending the game. The calendar only knows solved, late or not yet.
+- **No fail states:** Wordle adds rows after the sixth, Connections counts mistakes without ending the game, and Hashtag counts past its 12 swaps. The calendar only knows solved, late or not yet.
 - **Pinpoint's AI judge:** runs only after the word matcher says no, with a "Checking…" button meanwhile. If the model is off, slow (8 seconds), over the free allocation or the device is offline, the guess is just a miss. Settings: `ADVENT_AI=0` turns it off, `ADVENT_AI_MODEL` picks another Workers AI model (default `@cf/google/gemma-4-26b-a4b-it`). The player sees an AI-accepted guess as a normal solve.
 - **Pinpoint's ending:** a miss on clue 5 offers the answer. Turning it down gives two more guesses, then the offer comes back. Turn it down again and two more misses end the game: "You're cut off. The answer is '…'." A shown answer finishes the game like a solve (it counts toward the day, on time or late, and unlocks the afterword), but the board records `answerShown` (`asked` or `cutoff`). The day page then says Revealed, admin and the ntfy push say "asked for the answer" or "cut off", and the result card leads with that instead of Solved.
-- **Keyboards:** Wordle and the Mini use an on-screen keyboard, so the phone's own keyboard never covers the grid. A physical keyboard works too (arrows, Tab and space in the Mini).
+- **Keyboards:** Wordle and the Mini use an on-screen keyboard, so the phone's own keyboard never covers the grid. A physical keyboard works too (arrows, Tab and space in the Mini). In Hashtag, Tab to a letter and press Enter or Space to pick it.
 - **Queens and Patches:** not built yet. The game ids already exist, and the `events` table no longer restricts game ids, so adding a game needs no migration.

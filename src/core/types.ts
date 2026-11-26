@@ -1,11 +1,11 @@
 /** Shared types and constants. Imported by the browser app, the Pages Functions and the tools. */
 
 /** Every game id, in the order games are listed on a day. */
-export const ALL_GAMES = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle', 'queens', 'patches'] as const;
+export const ALL_GAMES = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle', 'hashtag', 'queens', 'patches'] as const;
 export type GameId = (typeof ALL_GAMES)[number];
 
 /** Games expected every day. Queens and Patches join in phase 2. */
-export const EXPECTED_GAMES: GameId[] = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle'];
+export const EXPECTED_GAMES: GameId[] = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle', 'hashtag'];
 
 export const GAME_NAMES: Record<GameId, string> = {
   wend: 'Wend',
@@ -14,6 +14,7 @@ export const GAME_NAMES: Record<GameId, string> = {
   connections: 'Connections',
   mini: 'Mini',
   wordle: 'Wordle',
+  hashtag: 'Hashtag',
   queens: 'Queens',
   patches: 'Patches',
 };
@@ -80,6 +81,17 @@ export interface WordlePuzzle {
   allowed?: string[];
 }
 
+export interface HashtagPuzzle {
+  /** Two five-letter words, on the second and fourth rows. */
+  across: string[];
+  /** Two five-letter words, down the second and fourth columns. */
+  down: string[];
+  /** The scrambled board: five rows of five, `#` off the grid. Holds exactly the solution's letters. */
+  start: string[];
+  /** Shown once it's solved. */
+  theme?: string;
+}
+
 export interface PuzzleDataMap {
   wend: WendPuzzle;
   pinpoint: PinpointPuzzle;
@@ -87,6 +99,7 @@ export interface PuzzleDataMap {
   connections: ConnectionsPuzzle;
   mini: MiniPuzzle;
   wordle: WordlePuzzle;
+  hashtag: HashtagPuzzle;
   queens: unknown;
   patches: unknown;
 }
@@ -148,6 +161,10 @@ export interface WordleBoard {
   /** Every guess in order; the last one is the answer. */
   guesses: string[];
 }
+export interface HashtagBoard {
+  /** Every swap in order, as pairs of square indices (the 16 letter squares counted row by row). */
+  swaps: [number, number][];
+}
 
 export interface Stats {
   /** Active milliseconds spent on the puzzle. */
@@ -157,7 +174,7 @@ export interface Stats {
 }
 
 export interface SolvePayload {
-  board: WendBoard | PinpointBoard | CrossclimbBoard | ConnectionsBoard | MiniBoard | WordleBoard;
+  board: WendBoard | PinpointBoard | CrossclimbBoard | ConnectionsBoard | MiniBoard | WordleBoard | HashtagBoard;
   stats: Stats;
 }
 

@@ -5,7 +5,7 @@
  *   node tools/content.mjs validate [--stamp]   check every puzzle (drafts included); --stamp writes late-publish deadlines
  *   node tools/content.mjs build                validate + write server/content.generated.ts (drafts excluded on main)
  *
- * Layout: content/days/<NN>/<game>.json (wend, pinpoint, crossclimb, connections, mini, wordle) and optional
+ * Layout: content/days/<NN>/<game>.json (wend, pinpoint, crossclimb, connections, mini, wordle, hashtag) and optional
  * day.json ({ "afterword": "..." }).
  * Puzzle files hold the game data plus optional "draft": true, "deadline": "<ISO>", "notes": "...".
  */
@@ -22,6 +22,7 @@ import { validateCrossclimb } from '../public/js/core/crossclimb.js';
 import { validateConnections } from '../public/js/core/connections.js';
 import { validateMini } from '../public/js/core/mini.js';
 import { validateWordle } from '../public/js/core/wordle.js';
+import { PAR, fewestSwaps, solution, startTiles, validateHashtag } from '../public/js/core/hashtag.js';
 import { ALL_GAMES } from '../public/js/core/types.js';
 import { pretty } from './json.mjs';
 
@@ -92,6 +93,14 @@ function validate(game, data) {
     errors.push(...validateWordle(data));
     if (!errors.length && !wordList().has(data.answer)) {
       warnings.push(`${data.answer} isn't in public/words.txt; it's still accepted as the answer`);
+    }
+  } else if (game === 'hashtag') {
+    errors.push(...validateHashtag(data));
+    if (!errors.length) {
+      const odd = [...data.across, ...data.down].filter((w) => !wordList().has(w));
+      if (odd.length) warnings.push(`${odd.join(', ')} ${odd.length === 1 ? "isn't" : "aren't"} in public/words.txt; fine if intended`);
+      const n = fewestSwaps(solution(data), startTiles(data));
+      if (n < 5) warnings.push(`only ${n} swaps needed (par is ${PAR}); npm run hashtag can rescramble it`);
     }
   } else {
     warnings.push(`${game} is not enabled yet; skipped`);

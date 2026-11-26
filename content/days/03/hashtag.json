@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Hardest allowed: 1 square starts green and it takes 12 swaps at best, exactly par, so any wasted swap runs past 12.",
+  "across": ["EAGLE", "SKIES"],
+  "down": ["HAWKS", "FLIES"],
+  "start": [
+    "#S#E#",
+    "HFLSW",
+    "#I#S#",
+    "SEGIE",
+    "#K#A#"
+  ],
+  "theme": "Sample: the sky"
+}

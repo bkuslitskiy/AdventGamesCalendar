@@ -14,6 +14,8 @@ import {
   type ConnectionsPuzzle,
   type CrossclimbPuzzle,
   type GameId,
+  type HashtagBoard,
+  type HashtagPuzzle,
   type MiniPuzzle,
   type PinpointBoard,
   type PinpointPuzzle,
@@ -29,6 +31,8 @@ import { crossclimbGame, CROSSCLIMB_HOWTO } from '../games/crossclimb.ts';
 import { connectionsGame, CONNECTIONS_HOWTO } from '../games/connections.ts';
 import { miniGame, MINI_HOWTO } from '../games/mini.ts';
 import { wordleGame, WORDLE_HOWTO } from '../games/wordle.ts';
+import { hashtagGame, HASHTAG_HOWTO } from '../games/hashtag.ts';
+import { PAR, fewestSwaps, solution, startTiles } from '../../core/hashtag.ts';
 import type { GameView } from '../games/types.ts';
 
 interface Wrapper<W> {
@@ -43,7 +47,16 @@ const HOWTO: Partial<Record<GameId, string>> = {
   connections: CONNECTIONS_HOWTO,
   mini: MINI_HOWTO,
   wordle: WORDLE_HOWTO,
+  hashtag: HASHTAG_HOWTO,
 };
+
+function hashtagDetail(b: HashtagBoard, p: HashtagPuzzle, t: string): string {
+  const used = b.swaps.length;
+  const best = fewestSwaps(solution(p), startTiles(p));
+  if (used <= best) return `${plural(used, 'swap')}, the fewest possible, in ${t}.`;
+  const over = used > PAR ? `, ${used - PAR} past ${PAR}` : '';
+  return `${plural(used, 'swap')}${over} (the fewest is ${best}), in ${t}.`;
+}
 
 function pinpointDetail(b: PinpointBoard, answer: string, t: string): string {
   const n = plural(b.guesses.length, 'guess', 'guesses');
@@ -70,6 +83,8 @@ function detailFor(rec: SolveRecord, pub: PublishedPuzzle): string {
       return `Got it in ${plural((board as WordleBoard).guesses.length, 'guess', 'guesses')}, ${t}.`;
     case 'connections':
       return `${t}, ${plural(stats.attempts, 'mistake')}.`;
+    case 'hashtag':
+      return hashtagDetail(board as HashtagBoard, pub.data as HashtagPuzzle, t);
     case 'mini':
       return stats.attempts
         ? `${t}. The full grid needed fixing ${stats.attempts === 1 ? 'once' : `${stats.attempts} times`}.`
@@ -164,6 +179,8 @@ export async function renderPlay(app: App, n: number, game: GameId): Promise<voi
     view = miniGame({ ...common, puzzle: pub.data as MiniPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else if (game === 'wordle') {
     view = wordleGame({ ...common, puzzle: pub.data as WordlePuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
+  } else if (game === 'hashtag') {
+    view = hashtagGame({ ...common, puzzle: pub.data as HashtagPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else {
     shell(app, rerender, back, h('p', { class: 'lede' }, `${GAME_NAMES[game]} isn’t playable yet.`));
     return;

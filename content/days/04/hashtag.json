@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Easy: 6 squares start green, 5 swaps at best.",
+  "across": ["APRON", "SCALE"],
+  "down": ["SPICE", "BOWLS"],
+  "start": [
+    "#S#B#",
+    "AASON",
+    "#L#S#",
+    "WEPIC",
+    "#E#R#"
+  ],
+  "theme": "Sample: the kitchen"
+}

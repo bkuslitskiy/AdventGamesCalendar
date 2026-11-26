@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Repeated letters (three Ss; two each of A, E, L and R), to check the yellow counting.",
+  "across": ["HAILS", "GALES"],
+  "down": ["RADAR", "SLEET"],
+  "start": [
+    "#R#A#",
+    "ERSLS",
+    "#I#D#",
+    "ETLHA",
+    "#S#G#"
+  ],
+  "theme": "Sample: weather"
+}

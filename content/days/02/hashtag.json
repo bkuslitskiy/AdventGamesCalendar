@@ -1,0 +1,13 @@
+{
+  "notes": "MOCK for testing the flow. Replace before Dec 1. Nothing starts green (like Everyday Puzzles' hard mode); 10 swaps at best.",
+  "across": ["CREEK", "PIERS"],
+  "down": ["TRAIN", "FERRY"],
+  "start": [
+    "#I#A#",
+    "EKCRR",
+    "#E#P#",
+    "ESYNT",
+    "#R#F#"
+  ],
+  "theme": "Sample: bridges"
+}

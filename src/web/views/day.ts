@@ -11,6 +11,7 @@ export const BLURB: Partial<Record<GameId, string>> = {
   connections: 'Sort sixteen words into four groups of four.',
   mini: 'A five-minute crossword.',
   wordle: 'Guess the word from coloured hints.',
+  hashtag: 'Unscramble four words that cross like a #.',
 };
 
 const STATE_TEXT = { unsolved: 'To play', late: 'Solved late', ontime: 'Solved' };

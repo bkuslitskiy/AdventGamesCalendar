@@ -12,6 +12,7 @@ import { mulberry32 } from '../public/js/core/rand.js';
 import { judgeGroup, guessKey, groupOf, validateConnections } from '../public/js/core/connections.js';
 import { entries, numbering, isFull, isSolved, validateMini } from '../public/js/core/mini.js';
 import { score, keyStates, checkGuess, validateWordle } from '../public/js/core/wordle.js';
+import * as hash from '../public/js/core/hashtag.js';
 
 const T = (s) => Date.parse(s);
 
@@ -353,4 +354,113 @@ test('wordle guess checks', () => {
   assert.ok(validateWordle({ answer: 'brisk' }).length > 0);
   assert.ok(validateWordle({ answer: 'ABC' }).length > 0);
   assert.ok(validateWordle({ answer: 'BRISK', allowed: ['TOOLONG'] }).some((e) => e.includes('7 letters')));
+});
+
+// ---- Hashtag ----
+
+const HASH = { across: ['JOLLY', 'BOXES'], down: ['COCOA', 'ELVES'], start: ['#X#L#', 'SOCVY', '#O#S#', 'CBEEJ', '#A#L#'] };
+
+test('hashtag geometry: 16 squares, four words crossing at four', () => {
+  assert.equal(hash.SQUARES.length, 16);
+  assert.deepEqual(hash.SQUARES[0], [0, 1]);
+  assert.equal(hash.WORD_SQUARES.length, 4);
+  const counts = new Map();
+  for (const w of hash.WORD_SQUARES) for (const i of w) counts.set(i, (counts.get(i) ?? 0) + 1);
+  assert.equal([...counts.values()].filter((n) => n === 2).length, 4, 'four crossings');
+  assert.deepEqual(hash.toGrid(hash.solution(HASH)), ['#C#E#', 'JOLLY', '#C#V#', 'BOXES', '#A#S#']);
+  assert.equal(hash.fromGrid(hash.toGrid('ABCDEFGHIJKLMNOP')), 'ABCDEFGHIJKLMNOP');
+});
+
+test('hashtag colouring: green, yellow within a word, grey for another word, repeats counted', () => {
+  const m = hash.marks(hash.solution(HASH), hash.startTiles(HASH));
+  const at = (r, c) => m[hash.SQUARES.findIndex(([y, x]) => y === r && x === c)];
+  assert.equal(at(1, 1), 'hit', 'O in JOLLY/COCOA is in place');
+  assert.equal(at(0, 3), 'near', 'L belongs in ELVES, elsewhere');
+  assert.equal(at(4, 3), 'miss', 'ELVES needs one L and the other L already took it');
+  assert.equal(at(0, 1), 'miss', 'X belongs in BOXES, not COCOA');
+  assert.equal(at(3, 2), 'miss', "BOXES's E is already green, so this E is grey");
+  assert.equal(at(1, 3), 'near', 'V at a crossing: needed by ELVES');
+  assert.deepEqual(m.filter((x) => x === 'hit').length, 4);
+});
+
+test('hashtag fewest swaps is exact, with repeated letters', () => {
+  const target = hash.solution(HASH);
+  assert.equal(hash.fewestSwaps(target, hash.startTiles(HASH)), 8);
+  assert.equal(hash.fewestSwaps(target, target), 0);
+  // Independent check: iterative deepening over every swap that fixes a square.
+  const brute = (t0) => {
+    for (let d = 0; ; d++) {
+      const go = (t, left) => {
+        const wrong = [...t].filter((ch, i) => ch !== target[i]).length;
+        if (!wrong) return true;
+        if (Math.ceil(wrong / 2) > left) return false;
+        for (let a = 0; a < 16; a++)
+          for (let b = a + 1; b < 16; b++)
+            if (t[a] !== target[a] && t[b] !== target[b] && (t[b] === target[a] || t[a] === target[b]) && go(hash.swap(t, a, b), left - 1)) return true;
+        return false;
+      };
+      if (go(t0, d)) return d;
+    }
+  };
+  const rnd = mulberry32(3);
+  for (let k = 0; k < 60; k++) {
+    let t = target;
+    for (let s = 0; s < 1 + Math.floor(rnd() * 6); s++) t = hash.swap(t, Math.floor(rnd() * 16), Math.floor(rnd() * 16));
+    const path = hash.solve(target, t);
+    assert.equal(path.length, brute(t), `fewest swaps for ${t}`);
+    assert.equal(path.reduce((u, [a, b]) => hash.swap(u, a, b), t), target, 'the returned swaps solve it');
+  }
+});
+
+test('hashtag scramble hits the requested greens and swaps', () => {
+  const target = hash.solution(HASH);
+  for (const [greens, swaps] of [[4, 8], [0, 10], [6, 5]]) {
+    let tiles = null;
+    for (let s = 0; !tiles && s < 500; s++) tiles = hash.scramble(target, mulberry32(s), { greens, swaps });
+    assert.ok(tiles, `found a scramble for ${greens} greens, ${swaps} swaps`);
+    assert.equal([...tiles].filter((ch, i) => ch === target[i]).length, greens);
+    assert.equal(hash.fewestSwaps(target, tiles), swaps);
+    assert.deepEqual(hash.validateHashtag({ ...HASH, start: hash.toGrid(tiles) }), []);
+  }
+  assert.equal(hash.scramble(target, mulberry32(1), { greens: 4, swaps: 3 }), null, 'impossible: 12 moving squares need 6+');
+});
+
+test('hashtag wasted swaps: a miss is a swap that gets no closer', () => {
+  const target = hash.solution(HASH);
+  const start = hash.startTiles(HASH);
+  const best = hash.fewestSwaps(target, start);
+  const [a, b] = hash.solve(target, start)[0];
+  assert.equal(hash.wasted(target, start, hash.swap(start, a, b)), false, 'a step on the best path');
+  const open = hash.marks(target, start).map((m, i) => (m === 'hit' ? -1 : i)).filter((i) => i >= 0);
+  const pairs = open.flatMap((x) => open.map((y) => [x, y])).filter(([x, y]) => x < y && start[x] !== start[y]);
+  const fixesNothing = ([x, y]) => start[y] !== target[x] && start[x] !== target[y];
+  const after = ([x, y]) => hash.fewestSwaps(target, hash.swap(start, x, y));
+  const split = pairs.find((q) => fixesNothing(q) && after(q) === best - 1);
+  const merge = pairs.find((q) => fixesNothing(q) && after(q) > best);
+  assert.ok(split && merge, 'this board has both kinds of no-green swap');
+  assert.equal(hash.wasted(target, start, hash.swap(start, ...split)), false, 'nothing turned green, but it still got closer');
+  assert.equal(hash.wasted(target, start, hash.swap(start, ...merge)), true);
+});
+
+test('hashtag validator', () => {
+  assert.deepEqual(hash.validateHashtag(HASH), []);
+  assert.ok(hash.validateHashtag({ ...HASH, down: ['COCOA', 'SHELF'] }).some((e) => e.includes('cross at row 2, column 4')));
+  assert.ok(hash.validateHashtag({ ...HASH, across: ['JOLLY'] }).some((e) => e.includes('exactly 2')));
+  assert.ok(hash.validateHashtag({ ...HASH, across: ['jolly', 'BOXES'] }).some((e) => e.includes('uppercase')));
+  assert.ok(hash.validateHashtag({ ...HASH, start: ['#X#L#', 'SOCVY', '#O#S#', 'CBEEJ', '#A#Q#'] }).some((e) => e.includes("solution's letters")));
+  assert.ok(hash.validateHashtag({ ...HASH, start: ['XX#L#', 'SOCVY', '#O#S#', 'CBEEJ', '#A#L#'] }).some((e) => e.includes('off the grid')));
+  assert.ok(hash.validateHashtag({ ...HASH, start: ['#X#L#', 'SOCVY'] }).some((e) => e.includes('5 rows')));
+  assert.ok(hash.validateHashtag({ ...HASH, start: hash.toGrid(hash.solution(HASH)) }).some((e) => e.includes('already solved')));
+  const target = hash.solution(HASH);
+  const rnd = mulberry32(11);
+  let hard = null;
+  while (!hard) {
+    const t = [...target];
+    for (let i = t.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [t[i], t[j]] = [t[j], t[i]];
+    }
+    if (hash.fewestSwaps(target, t.join('')) > hash.PAR) hard = t.join('');
+  }
+  assert.ok(hash.validateHashtag({ ...HASH, start: hash.toGrid(hard) }).some((e) => e.includes(`solvable in ${hash.PAR}`)));
 });
