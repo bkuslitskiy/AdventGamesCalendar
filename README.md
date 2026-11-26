@@ -52,7 +52,7 @@ npm run layout -- --shape "....#|..#..|#....|....." --words maple,cedar,oak,pine
 
 `.` is an open cell and `#` a wall, and the open cells must equal the total letters. The tool retries seeds until it finds a layout with exactly one placement.
 
-**Pinpoint.** 5 `clues` and one `answer`. Matching is loose: case, punctuation, plurals, filler words ("things in a…"), "tool box" vs "toolbox", small typos, and the answer plus up to 2 extra words. `aliases` widen it, `reject` blocks near-misses, and `tests.accept` / `tests.reject` are checked on every validate.
+**Pinpoint.** 5 `clues` and one `answer`. Matching is loose: case, punctuation, plurals, filler words ("things in a…"), "tool box" vs "toolbox", small typos, and the answer plus up to 2 extra words. For "things in/on a <container>" answers, what goes in the container counts on its own: "tools" or "hand tools" for "Things in a toolbox", "junk" for "Things in a junk drawer", "keys" for "Things on a keyboard". That only works for container words (box, case, bag, kit, chest, shelf, shed, bin, rack, basket, belt, drawer, pouch, jar, holder, board), so "beds" doesn't match "Things in a bedroom". Matching is by words, not meaning, so synonyms need `aliases`. `reject` blocks near-misses, and `tests.accept` / `tests.reject` are checked on every validate.
 
 **Crossclimb.** `rungs` are listed in ladder order, each one letter from the next. The `ends` (top, bottom) get one shared clue. Players may arrange any valid ladder, reversed included.
 

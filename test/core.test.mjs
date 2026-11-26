@@ -39,11 +39,12 @@ test('late-publish deadline = +24h rounded up to the next ET midnight', () => {
 });
 
 test('pinpoint matcher', () => {
-  const p = { answer: 'Things in a toolbox', reject: ['tools'] };
+  const p = { answer: 'Things in a toolbox' };
   for (const g of ['toolbox items', 'stuff in a tool box', 'things in a toolbx', 'Things in a TOOLBOX!', 'toolbox']) {
     assert.equal(judge(g, p), 'correct', g);
   }
-  for (const g of ['tools', 'hardware', '', '   ', 'box', 'things']) assert.equal(judge(g, p), 'wrong', g);
+  for (const g of ['hardware', '', '   ', 'box', 'things', 'Adjust', 'Flat', 'Handheld', 'Hold']) assert.equal(judge(g, p), 'wrong', g);
+  assert.equal(judge('tools', { ...p, reject: ['tools'] }), 'wrong', 'reject still wins');
   assert.equal(judge('salt & pepper', { answer: 'Salt and pepper' }), 'correct');
   assert.equal(judge('famous bridges', { answer: 'Bridges', aliases: [] }), 'correct');
   assert.equal(judge('rivers', { answer: 'Bridges' }), 'wrong');
@@ -71,6 +72,26 @@ test('pinpoint endgame: offer, two more, offer, two more, cut off', () => {
   assert.deepEqual(st(14), { kind: 'cutoff' });
   // A stale low count can't skip an offer that was already passed.
   assert.deepEqual(st(6, 0), { kind: 'extra', left: 1, final: false });
+});
+
+test('pinpoint matcher: what goes in a container answers for it', () => {
+  const yes = [
+    ['Things in a toolbox', ['tools', 'Tool', "carpenter's tools", 'Carpenters tools', 'hand tools']],
+    ['Things in a junk drawer', ['junk', 'random junk']],
+    ['Things on a keyboard', ['keys', 'computer keys']],
+    ['Things in a pencil case', ['pencils']],
+    ['Things on a bookshelf', ['books']],
+    ['Things in a spice rack', ['spices']],
+  ];
+  for (const [answer, guesses] of yes) for (const g of guesses) assert.equal(judge(g, { answer }), 'correct', `${g} → ${answer}`);
+  const no = [
+    ['Things in a toolbox', ['box', 'tools for fixing up an old house']],
+    ['Things in a bedroom', ['beds']],
+    ['Things at a ballpark', ['balls']],
+    ['Things in a pencil case', ['cases']],
+    ['Toolbox', ['tools']],
+  ];
+  for (const [answer, guesses] of no) for (const g of guesses) assert.equal(judge(g, { answer }), 'wrong', `${g} ↛ ${answer}`);
 });
 
 test('pinpoint validator runs the puzzle tests', () => {

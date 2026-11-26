@@ -78,12 +78,46 @@ function close(guess: string, target: string): boolean {
   return editDistance(gc, tc) <= tolerance(tc.length);
 }
 
-/** Close, or the guess contains every answer token with at most two extra. */
+// ---- Containers ----
+// "Things in a toolbox" is answered by naming what goes in it: "tools", "hand tools". So after in/on/inside/from,
+// a container whose first part names its contents (toolbox, bookshelf, junk drawer, pencil case) can be stood in
+// for by that first part. Only these container words count: "bedroom" doesn't make "beds" an answer.
+
+const HOLDERS = ['box', 'case', 'bag', 'kit', 'chest', 'shelf', 'shelve', 'shed', 'bin', 'rack', 'basket', 'belt', 'drawer', 'pouch', 'jar', 'holder', 'board'];
+const PREPS = new Set(['in', 'on', 'inside', 'from', 'into']);
+const DETERMINERS = new Set(['a', 'an', 'the', 'your', 'my', 'someone', 'someones']);
+
+interface Contents {
+  /** What goes in the container, e.g. "tool". */
+  part: string;
+  /** The answer tokens it stands for, e.g. ["toolbox"], or ["pencil", "case"]. */
+  covers: string[];
+}
+
+export function contentsOf(target: string): Contents[] {
+  const w = normalize(target).split(' ').filter(Boolean).map(singular);
+  const out: Contents[] = [];
+  for (let i = 0; i < w.length; i++) {
+    if (!PREPS.has(w[i]!)) continue;
+    let j = i + 1;
+    if (DETERMINERS.has(w[j] ?? '')) j++;
+    const a = w[j];
+    const b = w[j + 1];
+    if (!a) continue;
+    if (b && HOLDERS.includes(b) && a.length >= 3) out.push({ part: a, covers: [a, b] });
+    const h = HOLDERS.find((x) => a.endsWith(x) && a.length - x.length >= 3);
+    if (h) out.push({ part: a.slice(0, -h.length), covers: [a] });
+  }
+  return out;
+}
+
+/** Close, or the guess contains every answer token with at most two extra. A container's contents stand in for it. */
 function loose(guess: string, target: string): boolean {
   if (close(guess, target)) return true;
-  const g = new Set(tokens(guess));
   const t = new Set(tokens(target));
   if (t.size === 0) return false;
+  const inside = contentsOf(target);
+  const g = new Set(tokens(guess).flatMap((x) => inside.find((c) => c.part === x)?.covers ?? [x]));
   return [...t].every((x) => g.has(x)) && g.size - t.size <= 2;
 }
 

@@ -1,9 +1,8 @@
 {
   "clues": ["Wrench", "Level", "Tape", "Pliers", "Hammer"],
   "answer": "Things in a toolbox",
-  "reject": ["tools"],
   "tests": {
-    "accept": ["toolbox items", "stuff in a tool box", "things in a toolbx"],
-    "reject": ["tools", "hardware"]
+    "accept": ["toolbox items", "stuff in a tool box", "things in a toolbx", "tools", "carpenter's tools", "hand tools"],
+    "reject": ["hardware", "box", "handheld"]
   }
 }
