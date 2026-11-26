@@ -10,6 +10,7 @@
   --yellow: #ffd23f;
   --teal: #00838a;
   --bad: #d8344f;
+  --hit: #2fc49b;
   --mix: var(--paper);
   --radius: 14px;
   --font: 'Recursive', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -217,6 +218,16 @@ h3 {
   margin-bottom: 16px;
 }
 
+div.lede p {
+  margin: 0 0 4px;
+}
+
+.lede .sub {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 .month {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -252,7 +263,8 @@ h3 {
 
 .door .pips {
   display: flex;
-  gap: 3px;
+  flex-wrap: wrap;
+  gap: 2px 3px;
 }
 
 .pip {
@@ -773,6 +785,394 @@ h3 {
   border-radius: var(--radius);
   background: var(--paper-2);
   font-weight: 700;
+}
+
+/* ---- Shared keyboard (Wordle, Mini) ---- */
+
+.kb {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.kb-row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.key {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 46px;
+  height: 54px;
+  padding: 0;
+  border: 2px solid var(--ink-faint);
+  border-radius: 9px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-variation-settings: var(--mono);
+  font-weight: 800;
+  font-size: 17px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.key.wide {
+  flex: 1.6 1 0;
+  max-width: 76px;
+  font-size: 14px;
+}
+
+.key:active {
+  transform: translate(1px, 1px);
+}
+
+.key.hit {
+  background: var(--hit);
+  border-color: var(--hit);
+  color: #1a2a70;
+}
+
+.key.near {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a2a70;
+}
+
+.key.miss {
+  background: color-mix(in srgb, var(--ink-faint) 45%, var(--paper));
+  border-color: transparent;
+  color: var(--ink-soft);
+}
+
+/* ---- Wordle ---- */
+
+.wordle {
+  --gap: 6px;
+  --tile: min(58px, calc((min(100vw, 560px) - 32px - (var(--len, 5) - 1) * var(--gap)) / var(--len, 5)));
+  display: grid;
+  gap: var(--gap);
+  justify-content: center;
+}
+
+.wrow {
+  display: flex;
+  gap: var(--gap);
+}
+
+.wtile {
+  width: var(--tile);
+  aspect-ratio: 1;
+  border: 2px solid var(--ink-faint);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-variation-settings: var(--mono);
+  font-weight: 800;
+  font-size: calc(var(--tile) * 0.52);
+}
+
+.wtile.typed {
+  border-color: var(--ink);
+}
+
+.wtile.hit {
+  background: var(--hit);
+  border-color: var(--hit);
+  color: #1a2a70;
+}
+
+.wtile.near {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a2a70;
+}
+
+.wtile.miss {
+  background: color-mix(in srgb, var(--ink-faint) 55%, var(--paper));
+  border-color: transparent;
+  color: var(--ink);
+}
+
+@keyframes flip {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0);
+  }
+}
+
+.wrow.fresh .wtile {
+  animation: flip 0.35s ease both;
+}
+
+/* ---- Connections ---- */
+
+.conn-found {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.conn-group {
+  border-radius: 12px;
+  padding: 10px 12px;
+  text-align: center;
+  color: #1a2a70;
+  display: grid;
+  gap: 2px;
+}
+
+.conn-group strong {
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.conn-group span {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.conn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.conn-tile {
+  --tile: calc((min(100vw, 560px) - 56px) / 4);
+  min-height: 68px;
+  padding: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  font-size: clamp(9px, calc((var(--tile) - 14px) / (var(--chars, 5) * 0.74)), 17px);
+  line-height: 1.1;
+  overflow-wrap: normal;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.conn-tile.on {
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 3px 3px 0 var(--pink);
+  transform: translate(-1px, -1px);
+}
+
+.conn-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.conn-mistakes {
+  text-align: center;
+}
+
+.conn-recap {
+  display: grid;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.conn-recap-row {
+  display: flex;
+  gap: 4px;
+}
+
+.conn-recap i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+/* ---- Mini ---- */
+
+.mini-clue {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.mini-nav {
+  flex: none;
+  width: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mini-cluetext {
+  flex: 1;
+  min-height: 58px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pink) 18%, var(--paper-2));
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mini {
+  display: grid;
+  gap: 2px;
+  padding: 2px;
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ink);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.mcell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.mcell.block {
+  background: var(--ink);
+  cursor: default;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mcell.block {
+    background: #070b18;
+  }
+}
+
+.mcell.word {
+  background: color-mix(in srgb, var(--pink) 22%, var(--paper));
+}
+
+.mcell.sel {
+  background: var(--yellow);
+  color: #1a2a70;
+}
+
+.mcell.done {
+  background: color-mix(in srgb, var(--hit) 30%, var(--paper));
+  cursor: default;
+}
+
+.mcell .num {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: clamp(9px, 2.6vw, 12px);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mcell .ch {
+  font-family: var(--font-mono);
+  font-variation-settings: var(--mono);
+  font-weight: 800;
+  font-size: clamp(22px, 8vw, 34px);
+}
+
+.mini-clues {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 480px) {
+  .mini-clues {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mini-clues h3 {
+  margin-bottom: 4px;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.mini-clues ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.mini-clues button {
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mini-clues button b {
+  display: inline-block;
+  min-width: 1.5em;
+}
+
+.mini-clues button.on {
+  background: color-mix(in srgb, var(--pink) 22%, var(--paper));
+}
+
+.mini-clues button.cross {
+  background: var(--paper-2);
+}
+
+.mini-clues button.filled {
+  color: var(--ink-soft);
+}
+
+.mini-clues button:disabled {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrow.fresh .wtile {
+    animation: none;
+  }
 }
 
 /* ---- Admin ---- */

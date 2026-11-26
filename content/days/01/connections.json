@@ -1,0 +1,10 @@
+{
+  "draft": true,
+  "notes": "MOCK for testing the flow. Red herrings: PAN (pancake / breakfast), HEARTS, CHEESE. Replace before Dec 1.",
+  "groups": [
+    { "name": "Breakfast foods", "words": ["TOAST", "BAGEL", "WAFFLE", "OMELET"] },
+    { "name": "Card games", "words": ["RUMMY", "POKER", "HEARTS", "SNAP"] },
+    { "name": "___cake", "words": ["PAN", "CUP", "CHEESE", "SPONGE"] },
+    { "name": "Golden ___", "words": ["GATE", "GOOSE", "RULE", "HOUR"] }
+  ]
+}

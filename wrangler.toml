@@ -20,3 +20,5 @@ migrations_dir = "migrations"
 #   ADMIN_TOKEN  bearer token for /#/admin and /api/admin/*
 #   NTFY_URL     full ntfy topic URL for solve pings, e.g. https://ntfy.sh/<random-topic>
 #   ADVENT_NOW   optional, preview only: pretend the clock reads this ISO time (play-testing)
+#   ADVENT_EARLY_ACCESS  optional: "1" opens every day until Dec 1, "0" keeps the gate.
+#                        Unset, it is on for preview branches (drafts bundled) and off on main.

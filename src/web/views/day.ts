@@ -8,6 +8,9 @@ export const BLURB: Partial<Record<GameId, string>> = {
   wend: 'Trace the hidden words. Every letter is used once.',
   pinpoint: 'Find what links five clues, in as few as you can.',
   crossclimb: 'Solve the clues, then climb the ladder one letter at a time.',
+  connections: 'Sort sixteen words into four groups of four.',
+  mini: 'A five-minute crossword.',
+  wordle: 'Guess the word from coloured hints.',
 };
 
 const STATE_TEXT = { unsolved: 'To play', late: 'Solved late', ontime: 'Solved' };

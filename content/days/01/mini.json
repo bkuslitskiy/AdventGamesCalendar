@@ -1,0 +1,27 @@
+{
+  "draft": true,
+  "notes": "MOCK for testing the flow. Replace before Dec 1.",
+  "grid": [
+    "#HASH",
+    "FORCE",
+    "ANGEL",
+    "SOUND",
+    "TREE#"
+  ],
+  "clues": {
+    "across": {
+      "1": "___ browns (diner side)",
+      "5": "\"May the ___ be with you\"",
+      "6": "Halo wearer",
+      "7": "Safe and ___",
+      "8": "Family ___"
+    },
+    "down": {
+      "1": "___ roll (school list)",
+      "2": "Debate",
+      "3": "Make a ___ (cause a fuss)",
+      "4": "Kept in one's hands",
+      "5": "Speedy"
+    }
+  }
+}

@@ -25,6 +25,11 @@ export interface Env {
   NTFY_URL?: string;
   /** Play-testing only: freeze the server clock at this ISO time. */
   ADVENT_NOW?: string;
+  /**
+   * Pre-launch testing: "1" opens every day until Day 1 opens, "0" keeps the normal gate.
+   * Unset: on for builds that include drafts (local dev, preview branches), off for production.
+   */
+  ADVENT_EARLY_ACCESS?: string;
 }
 
 export interface Ctx<P extends string = string> {

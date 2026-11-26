@@ -2,3 +2,4 @@
 ADMIN_TOKEN=dev
 # NTFY_URL=https://ntfy.sh/your-random-topic
 # ADVENT_NOW=2026-12-03T15:00:00Z
+# ADVENT_EARLY_ACCESS=1   # open every day until Dec 1 (default: on for draft builds, off in production)

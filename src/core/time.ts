@@ -66,6 +66,15 @@ export function isOpen(n: number, now: number): boolean {
   return Number.isInteger(n) && n >= 1 && n <= DAY_COUNT && opensAt(n) <= now;
 }
 
+/** Early access (pre-launch testing) only applies before Day 1 opens; from then on the normal gate holds. */
+export const earlyActive = (now: number, early: boolean): boolean => early && now < opensAt(1);
+
+/** Is day n open, counting early access? */
+export function dayOpen(n: number, now: number, early = false): boolean {
+  if (isOpen(n, now)) return true;
+  return earlyActive(now, early) && Number.isInteger(n) && n >= 1 && n <= DAY_COUNT;
+}
+
 /** Highest open day number, 0 before Dec 1. */
 export function todayN(now: number): number {
   let n = 0;

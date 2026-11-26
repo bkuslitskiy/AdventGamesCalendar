@@ -1,6 +1,6 @@
 # Advent
 
-One Wend, one Pinpoint and one Crossclimb a day, Dec 1–31 2026, at advent.useless.blog. Each day opens at midnight New York time. One real player (babe) writes progress to the server; anyone else plays in their own browser.
+Six puzzles a day (Wend, Pinpoint, Crossclimb, Connections, Mini and Wordle), Dec 1–31 2026, at advent.useless.blog. Each day opens at midnight New York time. One real player (babe) writes progress to the server; anyone else plays in their own browser.
 
 ## Stack
 
@@ -11,14 +11,15 @@ One Wend, one Pinpoint and one Crossclimb a day, Dec 1–31 2026, at advent.usel
 - **Dependencies:** TypeScript (dev) and nothing else.
 
 ```text
-src/core/        shared rules: time + lateness, Wend, Pinpoint matcher, Crossclimb, replay, calendar status
-src/web/         the app: views/, games/, store (babe/guest/preview), api client
+src/core/        shared rules: time + lateness, Wend, Pinpoint matcher, Crossclimb, Connections, Mini, Wordle, replay, calendar status
+src/web/         the app: views/, games/ (+ the on-screen keyboard), store (babe/guest/preview), api client
 functions/api/   state, day/[n], progress, events, admin/{log,void,reset}
 server/          D1 access, content lookup, http helpers (content.generated.ts is built)
-content/days/    01/ … 31/  →  wend.json  pinpoint.json  crossclimb.json  day.json
+content/days/    01/ … 31/  →  wend.json  pinpoint.json  crossclimb.json  connections.json  mini.json  wordle.json  day.json
 tools/           content.mjs (validate/build), wend-layout.mjs, dev-server.mjs
 migrations/      D1 schema
-test/            node:test unit tests for src/core
+public/words.txt Wordle guess list (4–7 letters, SCOWL; licence in words-LICENSE.txt)
+test/            node:test unit tests for src/core, plus e2e.mjs (browser play-through of Day 1)
 ```
 
 ## Local development
@@ -30,9 +31,14 @@ npm install
 npm test                                   # core unit tests
 npm run dev                                # http://localhost:8788, admin token "dev"
 ADVENT_NOW=2026-12-03T15:00:00Z npm run dev   # freeze the clock to play-test a December day
+npm run e2e                                # plays all of Day 1 in a headless browser (see below)
 ```
 
-The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
+The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over.
+
+**Early access (testing before Dec 1).** Until Day 1 opens, every day can be opened and played, so the whole flow can be tested now. It's on by default wherever drafts are bundled (`npm run dev`, preview branches) and off in production. `ADVENT_EARLY_ACCESS=1` turns it on anywhere (production included), `0` turns it off. It switches itself off at midnight on Dec 1 regardless. Solves made during early access are real events: if you test as babe on production, reset those days from the admin page before Dec 1.
+
+**Browser test.** `npm run e2e` starts its own dev server (in-memory database, clock frozen on Nov 28, early access on) and solves every Day 1 game through the UI on a phone-sized screen, with a deliberate mistake in each. It also checks guest isolation, saved mid-puzzle state and the 320px layout. It reads the puzzles from `content/days/01`, so it keeps working once the mocks are replaced. It needs Playwright, which isn't a dependency: run `npm i --no-save playwright && npx playwright install chromium` once. `SHOTS=.dev/shots npm run e2e` also saves screenshots. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
 
 ## Writing puzzles
 
@@ -50,6 +56,24 @@ npm run layout -- --shape "....#|..#..|#....|....." --words maple,cedar,oak,pine
 
 **Crossclimb.** `rungs` are listed in ladder order, each one letter from the next. The `ends` (top, bottom) get one shared clue. Players may arrange any valid ladder, reversed included.
 
+**Connections.** Four `groups`, easiest first (shown yellow, green, blue, purple), each with a `name` and exactly 4 `words`. All 16 words must differ, and each word must be at most 14 characters. Players get "One away…" for three of a group. There's no mistake limit; mistakes are counted.
+
+```json
+{ "groups": [ { "name": "Card games", "words": ["RUMMY", "POKER", "HEARTS", "SNAP"] }, … ] }
+```
+
+**Mini.** A `grid` of rows (`A–Z`, `#` for black squares, up to 9×9) and `clues.across` / `clues.down` keyed by clue number. Numbering follows the usual crossword rules, and the validator lists the numbers it expects. Every white square must belong to a word, and answers can't repeat. The grid checks itself when full; there are no reveals.
+
+```json
+{ "grid": ["#HASH", "FORCE", "ANGEL", "SOUND", "TREE#"], "clues": { "across": { "1": "…", "5": "…" }, "down": { "1": "…" } } }
+```
+
+**Wordle.** One `answer`, 4–7 letters (the row width follows it). Guesses must be in `public/words.txt`; add names or slang for that day with `allowed`. Six rows show, and running out adds another row instead of failing.
+
+```json
+{ "answer": "BRISK" }
+```
+
 **`day.json`** holds an optional `afterword`, shown once every game that day is solved.
 
 Before every push:
@@ -65,7 +89,7 @@ npm run validate
 1. `npx wrangler d1 create advent` and `npx wrangler d1 create advent-preview`, then put both ids in `wrangler.toml`.
 2. `npm run db:prod` and `npm run db:preview` apply `migrations/` remotely.
 3. Create a Pages project from the GitHub repo: framework preset none, build command `npm run build`, output `public` (read from `wrangler.toml`). The Node version comes from `.node-version`.
-4. Set the secrets for production, and for preview if you want admin there: `ADMIN_TOKEN` (long random string) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). On preview only, `ADVENT_NOW` freezes the clock for play-testing.
+4. Set the secrets for production, and for preview if you want admin there: `ADMIN_TOKEN` (long random string) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). On preview only, `ADVENT_NOW` freezes the clock for play-testing. `ADVENT_EARLY_ACCESS` (see above) needs no setting unless you want it on in production.
 5. In Pages, go to Custom domains and add `advent.useless.blog`. Only then create `CNAME advent → <project>.pages.dev` wherever useless.blog's DNS lives.
 6. Check that `https://advent.useless.blog/robots.txt` disallows everything and that responses carry `X-Robots-Tag: noindex`.
 
@@ -86,4 +110,6 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss".
 - **Mid-puzzle state:** stays on the device. Only finished solves sync. Offline solves queue in an outbox and send on the next load.
 - **Lateness:** compares the solve time, on a device clock synced to the server, with the puzzle's deadline. That's the end of its day in New York, or the stamped `deadline`.
 - **Calendar states:** not open, puzzles left, solved late, or solved on the day. One pip per game.
-- **Queens and Patches:** not built yet. The schema and game ids already allow them.
+- **No fail states:** Pinpoint keeps giving guesses after clue 5, Wordle adds rows after the sixth, and Connections counts mistakes without ending the game. The calendar only knows solved, late or not yet.
+- **Keyboards:** Wordle and the Mini use an on-screen keyboard, so the phone's own keyboard never covers the grid. A physical keyboard works too (arrows, Tab and space in the Mini).
+- **Queens and Patches:** not built yet. The game ids already exist, and the `events` table no longer restricts game ids, so adding a game needs no migration.

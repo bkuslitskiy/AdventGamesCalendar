@@ -17,7 +17,8 @@
     "layout": "npm run build:web && node tools/wend-layout.mjs",
     "db:local": "npx wrangler d1 migrations apply advent --local",
     "db:preview": "npx wrangler d1 migrations apply advent-preview --remote --env preview",
-    "db:prod": "npx wrangler d1 migrations apply advent --remote"
+    "db:prod": "npx wrangler d1 migrations apply advent --remote",
+    "e2e": "npm run build && tsc -p tsconfig.server.json && node test/e2e.mjs"
   },
   "devDependencies": {
     "typescript": "^6.0.3"

@@ -10,17 +10,24 @@ import {
   ALL_GAMES,
   GAME_NAMES,
   solveKey,
+  type ConnectionsPuzzle,
   type CrossclimbPuzzle,
   type GameId,
+  type MiniPuzzle,
   type PinpointBoard,
   type PinpointPuzzle,
   type PublishedPuzzle,
   type SolveRecord,
   type WendPuzzle,
+  type WordleBoard,
+  type WordlePuzzle,
 } from '../../core/types.ts';
 import { wendGame, WEND_HOWTO } from '../games/wend.ts';
 import { pinpointGame, PINPOINT_HOWTO } from '../games/pinpoint.ts';
 import { crossclimbGame, CROSSCLIMB_HOWTO } from '../games/crossclimb.ts';
+import { connectionsGame, CONNECTIONS_HOWTO } from '../games/connections.ts';
+import { miniGame, MINI_HOWTO } from '../games/mini.ts';
+import { wordleGame, WORDLE_HOWTO } from '../games/wordle.ts';
 import type { GameView } from '../games/types.ts';
 
 interface Wrapper<W> {
@@ -28,15 +35,37 @@ interface Wrapper<W> {
   game: W | null;
 }
 
-const HOWTO: Partial<Record<GameId, string>> = { wend: WEND_HOWTO, pinpoint: PINPOINT_HOWTO, crossclimb: CROSSCLIMB_HOWTO };
+const HOWTO: Partial<Record<GameId, string>> = {
+  wend: WEND_HOWTO,
+  pinpoint: PINPOINT_HOWTO,
+  crossclimb: CROSSCLIMB_HOWTO,
+  connections: CONNECTIONS_HOWTO,
+  mini: MINI_HOWTO,
+  wordle: WORDLE_HOWTO,
+};
+
+function detailFor(rec: SolveRecord): string {
+  const { stats, board } = rec.payload;
+  const t = fmtTime(stats.ms);
+  switch (rec.game) {
+    case 'pinpoint':
+      return `Got it on clue ${(board as PinpointBoard).cluesSeen} of 5 in ${t}.`;
+    case 'wordle':
+      return `Got it in ${plural((board as WordleBoard).guesses.length, 'guess', 'guesses')}, ${t}.`;
+    case 'connections':
+      return `${t}, ${plural(stats.attempts, 'mistake')}.`;
+    case 'mini':
+      return stats.attempts
+        ? `${t}. The full grid needed fixing ${stats.attempts === 1 ? 'once' : `${stats.attempts} times`}.`
+        : `Clean solve in ${t}.`;
+    default:
+      return `${t}, ${plural(stats.attempts, 'miss', 'misses')}.`;
+  }
+}
 
 function resultCard(app: App, n: number, rec: SolveRecord): HTMLElement {
-  const { stats, board } = rec.payload;
   const nextGame = ALL_GAMES.find((g) => g !== rec.game && app.days.get(n)?.puzzles[g] && !app.solves.has(solveKey(n, g)));
-  const detail =
-    rec.game === 'pinpoint'
-      ? `Got it on clue ${(board as PinpointBoard).cluesSeen} of 5 in ${fmtTime(stats.ms)}.`
-      : `${fmtTime(stats.ms)}, ${plural(stats.attempts, 'miss', 'misses')}.`;
+  const detail = detailFor(rec);
   return h(
     'div',
     { class: ['result', rec.late && 'late'] },
@@ -107,6 +136,12 @@ export async function renderPlay(app: App, n: number, game: GameId): Promise<voi
     view = pinpointGame({ ...common, puzzle: pub.data as PinpointPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else if (game === 'crossclimb') {
     view = crossclimbGame({ ...common, puzzle: pub.data as CrossclimbPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
+  } else if (game === 'connections') {
+    view = connectionsGame({ ...common, puzzle: pub.data as ConnectionsPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
+  } else if (game === 'mini') {
+    view = miniGame({ ...common, puzzle: pub.data as MiniPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
+  } else if (game === 'wordle') {
+    view = wordleGame({ ...common, puzzle: pub.data as WordlePuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else {
     shell(app, rerender, back, h('p', { class: 'lede' }, `${GAME_NAMES[game]} isn’t playable yet.`));
     return;

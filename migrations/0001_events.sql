@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS events (
   ua         TEXT,
   type       TEXT NOT NULL CHECK (type IN ('identify', 'solve', 'reset', 'void')),
   day        INTEGER CHECK (day IS NULL OR day BETWEEN 1 AND 31),
-  game       TEXT CHECK (game IS NULL OR game IN ('wend', 'pinpoint', 'crossclimb', 'queens', 'patches')),
+  game       TEXT,                               -- game id; checked by the API (isGameId), so new games need no migration
   rev        TEXT,                               -- content hash of the puzzle as played
   payload    TEXT                                -- JSON: solve {board, stats}; void {ids, reason}
 );

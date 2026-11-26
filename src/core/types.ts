@@ -1,15 +1,19 @@
 /** Shared types and constants. Imported by the browser app, the Pages Functions and the tools. */
 
-export const ALL_GAMES = ['wend', 'pinpoint', 'crossclimb', 'queens', 'patches'] as const;
+/** Every game id, in the order games are listed on a day. */
+export const ALL_GAMES = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle', 'queens', 'patches'] as const;
 export type GameId = (typeof ALL_GAMES)[number];
 
 /** Games expected every day. Queens and Patches join in phase 2. */
-export const EXPECTED_GAMES: GameId[] = ['wend', 'pinpoint', 'crossclimb'];
+export const EXPECTED_GAMES: GameId[] = ['wend', 'pinpoint', 'crossclimb', 'connections', 'mini', 'wordle'];
 
 export const GAME_NAMES: Record<GameId, string> = {
   wend: 'Wend',
   pinpoint: 'Pinpoint',
   crossclimb: 'Crossclimb',
+  connections: 'Connections',
+  mini: 'Mini',
+  wordle: 'Wordle',
   queens: 'Queens',
   patches: 'Patches',
 };
@@ -46,10 +50,41 @@ export interface CrossclimbPuzzle {
   ends: { top: string; bottom: string; clue: string };
 }
 
+export interface ConnectionsGroup {
+  /** Shown once the group is found. */
+  name: string;
+  words: string[];
+}
+export interface ConnectionsPuzzle {
+  /** Exactly four groups of four, easiest first (they're coloured yellow, green, blue, purple). */
+  groups: ConnectionsGroup[];
+}
+
+export interface MiniClues {
+  /** Keyed by clue number, e.g. { "1": "...", "5": "..." }. */
+  across: Record<string, string>;
+  down: Record<string, string>;
+}
+export interface MiniPuzzle {
+  /** One string per row. Letters A–Z; `#` is a black square. */
+  grid: string[];
+  clues: MiniClues;
+}
+
+export interface WordlePuzzle {
+  /** 4–7 letters, A–Z. Its length sets the row width. */
+  answer: string;
+  /** Extra guesses to accept on top of the word list (names, slang). Same length as the answer. */
+  allowed?: string[];
+}
+
 export interface PuzzleDataMap {
   wend: WendPuzzle;
   pinpoint: PinpointPuzzle;
   crossclimb: CrossclimbPuzzle;
+  connections: ConnectionsPuzzle;
+  mini: MiniPuzzle;
+  wordle: WordlePuzzle;
   queens: unknown;
   patches: unknown;
 }
@@ -89,6 +124,21 @@ export interface CrossclimbBoard {
   bottom: string;
 }
 
+export interface ConnectionsBoard {
+  /** Group indices in the order found. */
+  order: number[];
+  /** Every submitted guess, in order. */
+  guesses: string[][];
+}
+export interface MiniBoard {
+  /** The finished grid, one string per row (`#` for black squares). */
+  grid: string[];
+}
+export interface WordleBoard {
+  /** Every guess in order; the last one is the answer. */
+  guesses: string[];
+}
+
 export interface Stats {
   /** Active milliseconds spent on the puzzle. */
   ms: number;
@@ -97,7 +147,7 @@ export interface Stats {
 }
 
 export interface SolvePayload {
-  board: WendBoard | PinpointBoard | CrossclimbBoard;
+  board: WendBoard | PinpointBoard | CrossclimbBoard | ConnectionsBoard | MiniBoard | WordleBoard;
   stats: Stats;
 }
 
@@ -125,6 +175,8 @@ export interface StateDay {
 export interface StateResponse {
   now: string;
   today: number;
+  /** Pre-launch testing: every day is open until Day 1 opens. */
+  early: boolean;
   days: StateDay[];
   expected: GameId[];
 }

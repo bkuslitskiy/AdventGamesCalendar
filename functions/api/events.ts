@@ -1,8 +1,8 @@
 import type { Env, Handler } from '../../server/types.ts';
 import { fail, json, nowMs, readJson } from '../../server/http.ts';
 import { appendEvent } from '../../server/db.ts';
-import { puzzleFor } from '../../server/content.ts';
-import { iso, isLate, isOpen } from '../../src/core/time.ts';
+import { earlyAccess, puzzleFor } from '../../server/content.ts';
+import { dayOpen, iso, isLate } from '../../src/core/time.ts';
 import { GAME_NAMES, isGameId, type EventInput, type Stats } from '../../src/core/types.ts';
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
@@ -26,7 +26,7 @@ export const onRequestPost: Handler = async (ctx) => {
   }
 
   const { day, game, rev, payload } = body;
-  if (typeof day !== 'number' || !isOpen(day, now)) return fail(400, 'day is not open');
+  if (typeof day !== 'number' || !dayOpen(day, now, earlyAccess(env))) return fail(400, 'day is not open');
   if (!isGameId(game)) return fail(400, 'unknown game');
   const puzzle = puzzleFor(day, game);
   if (!puzzle) return fail(404, 'no such puzzle');

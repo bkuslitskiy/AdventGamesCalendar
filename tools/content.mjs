@@ -5,7 +5,8 @@
  *   node tools/content.mjs validate [--stamp]   check every puzzle (drafts included); --stamp writes late-publish deadlines
  *   node tools/content.mjs build                validate + write server/content.generated.ts (drafts excluded on main)
  *
- * Layout: content/days/<NN>/{wend,pinpoint,crossclimb}.json and optional day.json ({ "afterword": "..." }).
+ * Layout: content/days/<NN>/<game>.json (wend, pinpoint, crossclimb, connections, mini, wordle) and optional
+ * day.json ({ "afterword": "..." }).
  * Puzzle files hold the game data plus optional "draft": true, "deadline": "<ISO>", "notes": "...".
  */
 import { createHash } from 'node:crypto';
@@ -18,6 +19,9 @@ import { DAY_COUNT, dayEnd, iso, lateDeadline, opensAt } from '../public/js/core
 import { validateWend, countPlacements } from '../public/js/core/wend.js';
 import { validatePinpoint } from '../public/js/core/pinpoint.js';
 import { validateCrossclimb } from '../public/js/core/crossclimb.js';
+import { validateConnections } from '../public/js/core/connections.js';
+import { validateMini } from '../public/js/core/mini.js';
+import { validateWordle } from '../public/js/core/wordle.js';
 import { ALL_GAMES } from '../public/js/core/types.js';
 import { pretty } from './json.mjs';
 
@@ -49,9 +53,27 @@ function splitFile(obj) {
   return { data, meta };
 }
 
+let words = null;
+/** public/words.txt, the Wordle guess list (uppercased). */
+function wordList() {
+  if (!words) {
+    const file = join(ROOT, 'public', 'words.txt');
+    words = new Set(
+      existsSync(file)
+        ? readFileSync(file, 'utf8')
+            .split('\n')
+            .filter((l) => l && !l.startsWith('#'))
+            .map((l) => l.trim().toUpperCase())
+        : [],
+    );
+  }
+  return words;
+}
+
 function validate(game, data) {
   const errors = [];
   const warnings = [];
+  let skip = false;
   if (game === 'wend') {
     errors.push(...validateWend(data));
     if (!errors.length) {
@@ -62,10 +84,20 @@ function validate(game, data) {
     errors.push(...validatePinpoint(data));
   } else if (game === 'crossclimb') {
     errors.push(...validateCrossclimb(data));
+  } else if (game === 'connections') {
+    errors.push(...validateConnections(data));
+  } else if (game === 'mini') {
+    errors.push(...validateMini(data));
+  } else if (game === 'wordle') {
+    errors.push(...validateWordle(data));
+    if (!errors.length && !wordList().has(data.answer)) {
+      warnings.push(`${data.answer} isn't in public/words.txt; it's still accepted as the answer`);
+    }
   } else {
     warnings.push(`${game} is not enabled yet; skipped`);
+    skip = true;
   }
-  return { errors, warnings };
+  return { errors, warnings, skip };
 }
 
 /** Was this puzzle already live (present and not a draft) on origin/main? */
@@ -123,10 +155,10 @@ function readDays({ includeDrafts, stamp }) {
         continue;
       }
       const { data, meta } = splitFile(obj);
-      const { errors, warnings } = validate(game, data);
+      const { errors, warnings, skip } = validate(game, data);
       for (const w of warnings) console.warn(`! ${label}: ${w}`);
       for (const e of errors) problems.push(`${label}: ${e}`);
-      if (errors.length || warnings.length) continue;
+      if (errors.length || skip) continue;
 
       if (canStamp && !meta.draft && !meta.deadline && now() >= opensAt(n) && !liveOnMain(file)) {
         meta.deadline = iso(lateDeadline(now()));

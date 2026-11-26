@@ -21,17 +21,25 @@ export async function renderCalendar(app: App): Promise<void> {
   const { state, solves } = app;
   const today = state.today;
 
+  const behind = state.days.filter((d) => d.open && dayStatus(d.n, d.open, d.games, solves) === 'unsolved').length;
+  const left = behind ? `${behind} ${behind === 1 ? 'day has' : 'days have'} puzzles left.` : 'Nothing left to solve.';
   let lede: Node;
-  if (today === 0) {
+  if (today === 0 && state.early) {
+    lede = h(
+      'div',
+      { class: 'lede' },
+      h('p', null, `Early access: every day is open for testing until Day 1 opens in ${until(opensAt(1) - clockNow())}.`),
+      h('p', { class: 'sub' }, left),
+    );
+  } else if (today === 0) {
     lede = h('p', { class: 'lede' }, `Day 1 opens in ${until(opensAt(1) - clockNow())}.`);
   } else {
-    const behind = state.days.filter((d) => d.open && dayStatus(d.n, d.open, d.games, solves) === 'unsolved').length;
     lede = h(
       'p',
       { class: 'lede' },
       today < DAY_COUNT ? h('a', { href: `#/day/${today}` }, `Day ${today} is open.`) : h('a', { href: `#/day/${today}` }, 'Every day is open.'),
       ' ',
-      behind ? `${behind} ${behind === 1 ? 'day has' : 'days have'} puzzles left.` : 'Nothing left to solve.',
+      left,
     );
   }
 
