@@ -1,7 +1,8 @@
 import { h, mount, shake } from '../dom.ts';
-import { judge, PINPOINT_EXTRA, pinpointStage, type PinpointStage } from '../../core/pinpoint.ts';
+import { GUESS_MAX, judge, PINPOINT_EXTRA, pinpointStage, type PinpointStage } from '../../core/pinpoint.ts';
 import type { PinpointBoard, PinpointPuzzle } from '../../core/types.ts';
 import type { GameProps, GameView } from './types.ts';
+import type { RemoteVerdict } from '../api.ts';
 
 export interface PinpointWip {
   guesses: string[];
@@ -26,7 +27,12 @@ function missText(st: PinpointStage): string {
   return st.kind === 'extra' ? `Not quite. ${ahead(st)}` : '';
 }
 
-export function pinpointGame(props: GameProps<PinpointPuzzle, PinpointWip, PinpointBoard>): GameView {
+export interface PinpointProps extends GameProps<PinpointPuzzle, PinpointWip, PinpointBoard> {
+  /** Second opinion from the server's AI judge on a guess the word matcher rejected. */
+  remote?: (guess: string) => Promise<RemoteVerdict>;
+}
+
+export function pinpointGame(props: PinpointProps): GameView {
   const p = props.puzzle;
   const solved = props.solved;
   const misses: string[] = solved
@@ -38,6 +44,7 @@ export function pinpointGame(props: GameProps<PinpointPuzzle, PinpointWip, Pinpo
   let declined = props.wip?.declined ?? 0;
   let fresh = -1;
   let ended = false;
+  let busy = false;
   const stage = (): PinpointStage => pinpointStage(p.clues.length, misses.length, declined);
 
   const clues = h('ol', { class: 'clues' });
@@ -52,19 +59,21 @@ export function pinpointGame(props: GameProps<PinpointPuzzle, PinpointWip, Pinpo
     autocapitalize: 'none',
     spellcheck: 'false',
     enterkeyhint: 'go',
+    maxlength: GUESS_MAX,
     'aria-label': 'Your guess',
   });
+  const submit = h('button', { class: 'btn', type: 'submit' }, 'Guess');
   const form = h(
     'form',
     {
       class: 'guess',
       onsubmit: (ev: Event) => {
         ev.preventDefault();
-        guess(input.value.trim());
+        void guess(input.value.trim());
       },
     },
     input,
-    h('button', { class: 'btn', type: 'submit' }, 'Guess'),
+    submit,
   );
   const offerText = h('div', { class: 'ask' });
   const showBtn = h('button', { class: 'btn', type: 'button', onclick: () => end('asked') }, 'Show me');
@@ -109,13 +118,33 @@ export function pinpointGame(props: GameProps<PinpointPuzzle, PinpointWip, Pinpo
     props.onSolve({ guesses: misses.slice(), cluesSeen: revealed, answerShown: how }, misses.length);
   }
 
-  function guess(g: string): void {
-    if (!g || ended) return;
-    if (judge(g, p) === 'correct') {
-      ended = true;
-      props.onSolve({ guesses: [...misses, g], cluesSeen: revealed }, misses.length);
-      return;
+  function solve(g: string, ai: boolean): void {
+    ended = true;
+    props.onSolve({ guesses: [...misses, g], cluesSeen: revealed, ...(ai ? { aiAccepted: true as const } : {}) }, misses.length);
+  }
+
+  /** Keeps the phone keyboard up (readOnly, not disabled) while the AI judge thinks. */
+  function checking(on: boolean): void {
+    busy = on;
+    input.readOnly = on;
+    (submit as HTMLButtonElement).disabled = on;
+    submit.textContent = on ? 'Checking…' : 'Guess';
+  }
+
+  async function guess(g: string): Promise<void> {
+    if (!g || ended || busy) return;
+    if (judge(g, p) === 'correct') return solve(g, false);
+    if (props.remote) {
+      checking(true);
+      const v = await props.remote(g).catch((): RemoteVerdict => 'unavailable');
+      checking(false);
+      if (ended) return;
+      if (v === 'correct') return solve(g, true);
     }
+    miss(g);
+  }
+
+  function miss(g: string): void {
     misses.push(g);
     if (revealed < p.clues.length) {
       revealed++;

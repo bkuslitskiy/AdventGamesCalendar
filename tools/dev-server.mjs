@@ -47,7 +47,17 @@ const env = {
   NTFY_URL: process.env.NTFY_URL,
   ADVENT_NOW: process.env.ADVENT_NOW,
   ADVENT_EARLY_ACCESS: process.env.ADVENT_EARLY_ACCESS,
+  ADVENT_AI: process.env.ADVENT_AI,
+  ADVENT_AI_MODEL: process.env.ADVENT_AI_MODEL,
+  // Workers AI isn't available locally. ADVENT_FAKE_AI=1 stands in a judge that says YES only to guesses containing "fakeyes".
+  AI: process.env.ADVENT_FAKE_AI ? { run: fakeAi } : undefined,
 };
+
+async function fakeAi(_model, input) {
+  const ask = input.messages[input.messages.length - 1].content;
+  const { guess } = JSON.parse(ask.slice(0, ask.indexOf('\n\n')));
+  return { choices: [{ message: { content: /fakeyes/i.test(guess) ? 'YES' : 'NO' } }] };
+}
 
 // ---- Function routes from the file tree, Pages-style ([param] segments) ----
 function walk(dir) {

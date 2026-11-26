@@ -41,6 +41,8 @@ export interface PinpointPuzzle {
   aliases?: string[];
   reject?: string[];
   tests?: { accept?: string[]; reject?: string[] };
+  /** Set false to never ask the AI judge about this puzzle. */
+  ai?: boolean;
 }
 
 export interface CrossclimbPuzzle {
@@ -119,6 +121,8 @@ export interface PinpointBoard {
   cluesSeen: number;
   /** Set when the game ended by showing the answer: the player asked for it, or ran out of guesses. */
   answerShown?: 'asked' | 'cutoff';
+  /** The last guess was accepted by the AI judge, not the word matcher. */
+  aiAccepted?: true;
 }
 
 export const pinpointShown = (board: unknown): PinpointBoard['answerShown'] =>

@@ -2,7 +2,7 @@ import { h, mount, fmtTime } from '../dom.ts';
 import { adminLog, adminReset, adminVoid, getProgress, ApiError } from '../api.ts';
 import { lsDel, lsGet, lsSet } from '../store.ts';
 import { DAY_COUNT } from '../../core/time.ts';
-import { EXPECTED_GAMES, GAME_NAMES, pinpointShown, type GameId } from '../../core/types.ts';
+import { EXPECTED_GAMES, GAME_NAMES, pinpointShown, type GameId, type PinpointBoard } from '../../core/types.ts';
 import type { AdminEventView } from '../admin-types.ts';
 
 const TOKEN = 'advent.adminToken';
@@ -13,10 +13,12 @@ const et = (isoTime: string | null) =>
     : '';
 
 const SHOWN = { asked: 'asked for the answer', cutoff: 'cut off' } as const;
-/** Pinpoint games that ended by showing the answer. */
+/** Pinpoint games that ended by showing the answer, or were solved by the AI judge's say-so. */
 const shownNote = (board: unknown): string | null => {
   const how = pinpointShown(board);
-  return how ? SHOWN[how] : null;
+  if (how) return SHOWN[how];
+  const b = board as PinpointBoard | null;
+  return b?.aiAccepted ? `AI accepted “${b.guesses[b.guesses.length - 1] ?? ''}”` : null;
 };
 
 function detail(e: AdminEventView): string {

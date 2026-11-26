@@ -44,7 +44,7 @@ const ok = (cond, msg) => {
 // ---- dev server ----
 const server = spawn(process.execPath, [join(ROOT, 'tools', 'dev-server.mjs')], {
   cwd: ROOT,
-  env: { ...process.env, PORT: String(PORT), DB_FILE: ':memory:', ADVENT_NOW: '2026-11-28T17:00:00Z', ADVENT_EARLY_ACCESS: '1', NTFY_URL: '' },
+  env: { ...process.env, PORT: String(PORT), DB_FILE: ':memory:', ADVENT_NOW: '2026-11-28T17:00:00Z', ADVENT_EARLY_ACCESS: '1', NTFY_URL: '', ADVENT_FAKE_AI: '1' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let serverLog = '';
@@ -118,7 +118,8 @@ try {
     await page.goto(`${BASE}/#/day/1/pinpoint`);
     await page.fill('input[name=guess]', 'zzz nothing like it');
     await page.keyboard.press('Enter');
-    ok((await page.locator('.clues li:not(.hidden)').count()) === 2, 'pinpoint: a miss reveals the next clue');
+    await page.locator('.clues li:not(.hidden)').nth(1).waitFor({ timeout: 5000 });
+    ok((await page.locator('.clues li:not(.hidden)').count()) === 2, 'pinpoint: a miss reveals the next clue (after the AI judge says no)');
     await page.fill('input[name=guess]', p.answer);
     await page.keyboard.press('Enter');
     await solvedCard('pinpoint');
@@ -284,6 +285,7 @@ try {
     const miss = async (pg, i) => {
       await pg.fill('input[name=guess]', `zzz nothing ${i}`);
       await pg.keyboard.press('Enter');
+      await pg.waitForFunction((n) => document.querySelectorAll('.misses s').length >= n || !!document.querySelector('.result'), i);
     };
     await guest.goto(`${BASE}/#/day/1/pinpoint`);
     for (let i = 1; i <= 5; i++) await miss(guest, i);
@@ -312,6 +314,7 @@ try {
     const asker = await phone({ viewport: { width: 320, height: 640 } });
     await asker.goto(`${BASE}/`);
     await asker.getByRole('button', { name: 'No' }).click();
+    await asker.waitForSelector('.month');
     await asker.goto(`${BASE}/#/day/1/pinpoint`);
     for (let i = 1; i <= 5; i++) await miss(asker, i);
     ok(await asker.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '320px: the pinpoint offer fits');
@@ -320,6 +323,44 @@ try {
     ok(/Answer revealed/.test(await asker.textContent('.result h2')), 'pinpoint: asking shows the answer');
     const progress = await asker.evaluate(() => fetch('/api/progress').then((r) => r.json()));
     ok(progress.solves.length === games.length, "pinpoint: a guest's revealed answer doesn't touch babe's log");
+
+    // ---- AI judge (the dev server's fake says YES only to guesses containing "fakeyes") ----
+    const judgeApi = await (async () => {
+      const post = (body) => fetch(`${BASE}/api/judge`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+      const health = await fetch(`${BASE}/api/judge`).then((r) => r.json());
+      const words = await post({ day: 1, guess: 'tools' }).then((r) => r.json());
+      const ai = await post({ day: 1, guess: 'fakeyes kit' }).then((r) => r.json());
+      const no = await post({ day: 1, guess: 'zzz' }).then((r) => r.json());
+      const long = (await post({ day: 1, guess: 'x'.repeat(61) })).status;
+      const missing = (await post({ day: 9, guess: 'tools' })).status;
+      const raw = await post({ day: 1, guess: 'fakeyes kit' }).then((r) => r.text());
+      return { health, words, ai, no, long, missing, raw };
+    })();
+    ok(judgeApi.health.ai === true, 'judge: GET reports the AI binding');
+    ok(judgeApi.words.verdict === 'correct' && judgeApi.words.by === 'words', 'judge: the word matcher answers first, no AI call');
+    ok(judgeApi.ai.verdict === 'correct' && judgeApi.ai.by === 'ai', 'judge: AI can accept what words miss');
+    ok(judgeApi.no.verdict === 'wrong', 'judge: AI can say no');
+    ok(judgeApi.long === 400 && judgeApi.missing === 404, 'judge: long guesses and missing puzzles are refused');
+    ok(!judgeApi.raw.includes(p.answer), "judge: the reply never carries the answer");
+
+    const aiGuest = await phone();
+    await aiGuest.goto(`${BASE}/`);
+    await aiGuest.getByRole('button', { name: 'No' }).click();
+    await aiGuest.waitForSelector('.month');
+    await aiGuest.goto(`${BASE}/#/day/1/pinpoint`);
+    await miss(aiGuest, 1);
+    await aiGuest.fill('input[name=guess]', 'fakeyes handyman kit');
+    await aiGuest.keyboard.press('Enter');
+    await aiGuest.waitForSelector('.result h2');
+    ok(/Solved on the day/.test(await aiGuest.textContent('.result h2')), 'pinpoint: an AI-accepted guess solves the puzzle');
+    const board = await aiGuest.evaluate(() => {
+      for (let i = 0; i < localStorage.length; i++) {
+        const v = localStorage.getItem(localStorage.key(i));
+        if (v && v.includes('aiAccepted')) return v;
+      }
+      return '';
+    });
+    ok(/"aiAccepted":true/.test(board), 'pinpoint: the solve records that the AI accepted it');
   }
 
   // ---- Small phone layout ----

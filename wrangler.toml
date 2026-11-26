@@ -9,6 +9,11 @@ database_name = "advent"
 database_id = "1cf88ee4-bf5c-4695-b39f-c846f6b92050"
 migrations_dir = "migrations"
 
+# Workers AI, for Pinpoint's fallback judge (server/judge.ts). No API key: the binding only works from this
+# project's Functions. On the Workers Free plan, use past the daily free allocation fails instead of billing.
+[ai]
+binding = "AI"
+
 # Every preview deployment (any branch other than main). Never touches babe's log.
 [[env.preview.d1_databases]]
 binding = "DB"
@@ -16,9 +21,15 @@ database_name = "advent-preview"
 database_id = "e0eb2db5-2e1d-46b4-bfbe-cc98397493f9"
 migrations_dir = "migrations"
 
+# `ai` doesn't inherit, and preview overrides d1_databases, so preview must declare it too or the deploy fails.
+[env.preview.ai]
+binding = "AI"
+
 # Secrets are set outside this file (dashboard or `npx wrangler pages secret put NAME`):
 #   ADMIN_TOKEN  bearer token for /#/admin and /api/admin/*
 #   NTFY_URL     full ntfy topic URL for solve pings, e.g. https://ntfy.sh/<random-topic>
 #   ADVENT_NOW   optional, preview only: pretend the clock reads this ISO time (play-testing)
 #   ADVENT_EARLY_ACCESS  optional: early access (every day open until Dec 1) is on everywhere;
 #                        set "0" to keep the normal gate. It ends by itself at midnight ET on Dec 1.
+#   ADVENT_AI            optional: "0" turns Pinpoint's AI judge off (word matching only)
+#   ADVENT_AI_MODEL      optional: Workers AI model id for the judge (default in server/judge.ts)

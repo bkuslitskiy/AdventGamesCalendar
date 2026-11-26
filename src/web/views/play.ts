@@ -1,10 +1,10 @@
 import { h, fmtTime, plural } from '../dom.ts';
-import { clockNow } from '../api.ts';
+import { clockNow, judgeGuess } from '../api.ts';
 import { loadDay, type App } from '../app.ts';
 import { shell } from './shell.ts';
 import { longDate } from './day.ts';
 import { Stopwatch } from '../timer.ts';
-import { clearWip, loadWip, saveWip } from '../store.ts';
+import { clearWip, loadWip, previewToken, saveWip } from '../store.ts';
 import { iso, isLate } from '../../core/time.ts';
 import {
   ALL_GAMES,
@@ -149,7 +149,13 @@ export async function renderPlay(app: App, n: number, game: GameId): Promise<voi
   if (game === 'wend') {
     view = wendGame({ ...common, puzzle: pub.data as WendPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else if (game === 'pinpoint') {
-    view = pinpointGame({ ...common, puzzle: pub.data as PinpointPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
+    view = pinpointGame({
+      ...common,
+      puzzle: pub.data as PinpointPuzzle,
+      wip: (wrap?.game as never) ?? null,
+      solved: (done?.payload.board as never) ?? null,
+      remote: (g) => judgeGuess(n, g, role === 'preview' ? previewToken() ?? undefined : undefined),
+    });
   } else if (game === 'crossclimb') {
     view = crossclimbGame({ ...common, puzzle: pub.data as CrossclimbPuzzle, wip: (wrap?.game as never) ?? null, solved: (done?.payload.board as never) ?? null });
   } else if (game === 'connections') {

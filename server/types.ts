@@ -27,6 +27,12 @@ export interface Env {
   ADVENT_NOW?: string;
   /** Pre-launch testing: every day is open until Day 1 opens. On unless set to "0". */
   ADVENT_EARLY_ACCESS?: string;
+  /** Workers AI binding (Pinpoint's fallback judge). No key; absent locally unless faked. */
+  AI?: { run(model: string, input: unknown): Promise<unknown> };
+  /** "0" turns the AI judge off without removing the binding. */
+  ADVENT_AI?: string;
+  /** Workers AI model id for the judge; defaults to DEFAULT_MODEL in server/judge.ts. */
+  ADVENT_AI_MODEL?: string;
 }
 
 export interface Ctx<P extends string = string> {

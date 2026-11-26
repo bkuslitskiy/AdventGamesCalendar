@@ -8,13 +8,14 @@ Six puzzles a day (Wend, Pinpoint, Crossclimb, Connections, Mini and Wordle), De
 - **API:** Cloudflare Pages Functions in `functions/api/`, sharing `src/core/` with the browser.
 - **Storage:** one D1 table, `events`. It's an append-only log, and progress is rebuilt by replaying it.
 - **Content:** JSON files in `content/days/NN/`, bundled into the Function at build time. They're never static assets, so a day's puzzles are only served once it opens.
+- **AI:** a Workers AI binding (`AI`) gives Pinpoint a second opinion on rejected guesses. There's no API key, and on the Workers Free plan usage past the daily free allocation fails instead of billing.
 - **Dependencies:** TypeScript (dev) and nothing else.
 
 ```text
 src/core/        shared rules: time + lateness, Wend, Pinpoint matcher, Crossclimb, Connections, Mini, Wordle, replay, calendar status
 src/web/         the app: views/, games/ (+ the on-screen keyboard), store (babe/guest/preview), api client
-functions/api/   state, day/[n], progress, events, admin/{log,void,reset}
-server/          D1 access, content lookup, http helpers (content.generated.ts is built)
+functions/api/   state, day/[n], progress, events, judge, admin/{log,void,reset}
+server/          D1 access, content lookup, http helpers, AI judge (content.generated.ts is built)
 content/days/    01/ … 31/  →  wend.json  pinpoint.json  crossclimb.json  connections.json  mini.json  wordle.json  day.json
 tools/           content.mjs (validate/build), wend-layout.mjs, dev-server.mjs
 migrations/      D1 schema
@@ -34,7 +35,7 @@ ADVENT_NOW=2026-12-03T15:00:00Z npm run dev   # freeze the clock to play-test a 
 npm run e2e                                # plays all of Day 1 in a headless browser (see below)
 ```
 
-The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over. `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
+The dev server includes drafts and keeps its database in `.dev/advent.sqlite`; delete that file to start over. Workers AI isn't available locally, so Pinpoint uses word matching only; `ADVENT_FAKE_AI=1 npm run dev` stands in a fake judge that accepts any guess containing "fakeyes" (the browser test uses it). `npx wrangler pages dev` also works once `wrangler.toml` has real database ids (see `.dev.vars.example`).
 
 **Early access (testing before Dec 1).** Until Day 1 opens, every day can be opened and played, so the whole flow can be tested now. It's on everywhere, production included; `ADVENT_EARLY_ACCESS=0` turns it off. It switches itself off at midnight ET on Dec 1 regardless. While it's on, anyone with the URL (babe included) can open every day that has published puzzles. Solves made during early access are real events: if you test as babe on production, reset those days from the admin page before Dec 1.
 
@@ -52,7 +53,9 @@ npm run layout -- --shape "....#|..#..|#....|....." --words maple,cedar,oak,pine
 
 `.` is an open cell and `#` a wall, and the open cells must equal the total letters. The tool retries seeds until it finds a layout with exactly one placement.
 
-**Pinpoint.** 5 `clues` and one `answer`. Matching is loose: case, punctuation, plurals, filler words ("things in a…"), "tool box" vs "toolbox", small typos, and the answer plus up to 2 extra words. For "things in/on a <container>" answers, what goes in the container counts on its own: "tools" or "hand tools" for "Things in a toolbox", "junk" for "Things in a junk drawer", "keys" for "Things on a keyboard". That only works for container words (box, case, bag, kit, chest, shelf, shed, bin, rack, basket, belt, drawer, pouch, jar, holder, board), so "beds" doesn't match "Things in a bedroom". Matching is by words, not meaning, so synonyms need `aliases`. `reject` blocks near-misses, and `tests.accept` / `tests.reject` are checked on every validate.
+**Pinpoint.** 5 `clues` and one `answer`. Matching is loose: case, punctuation, plurals, filler words ("things in a…"), "tool box" vs "toolbox", small typos, and the answer plus up to 2 extra words. For "things in/on a <container>" answers, what goes in the container counts on its own: "tools" or "hand tools" for "Things in a toolbox", "junk" for "Things in a junk drawer", "keys" for "Things on a keyboard". That only works for container words (box, case, bag, kit, chest, shelf, shed, bin, rack, basket, belt, drawer, pouch, jar, holder, board), so "beds" doesn't match "Things in a bedroom". Matching is by words, not meaning, so a guess the words reject goes to the AI judge (below). `aliases` widen the word matcher, `reject` blocks near-misses, and `tests.accept` / `tests.reject` are checked on every validate.
+
+The **AI judge** sees the clues, answer, aliases and guess, and says yes or no. It never overrules you: a guess close to anything in `reject` or `tests.reject` stays wrong without asking it, and `"ai": false` keeps a puzzle word-only. AI-accepted solves are marked in admin and the ntfy push ("AI accepted …"), so you can promote good ones to `aliases` and add bad ones to `reject`. `GET /api/judge` reports whether it's wired up, without calling the model.
 
 **Crossclimb.** `rungs` are listed in ladder order, each one letter from the next. The `ends` (top, bottom) get one shared clue. Players may arrange any valid ladder, reversed included.
 
@@ -102,7 +105,7 @@ Open `/#/admin` and enter `ADMIN_TOKEN`. From there you can:
 - **Void events:** hides the ones you tick, with a reason. Voiding a void, or voiding a reset, undoes it. Nothing is ever deleted.
 - **Preview every day:** plays any day in a session where nothing is saved.
 
-Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss".
+Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss". A Pinpoint the AI judge accepted adds `AI accepted "…"`.
 
 ## Behaviour notes
 
@@ -111,6 +114,7 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss".
 - **Lateness:** compares the solve time, on a device clock synced to the server, with the puzzle's deadline. That's the end of its day in New York, or the stamped `deadline`.
 - **Calendar states:** not open, puzzles left, solved late, or solved on the day. One pip per game.
 - **No fail states:** Wordle adds rows after the sixth, and Connections counts mistakes without ending the game. The calendar only knows solved, late or not yet.
+- **Pinpoint's AI judge:** runs only after the word matcher says no, with a "Checking…" button meanwhile. If the model is off, slow (8 seconds), over the free allocation or the device is offline, the guess is just a miss. Settings: `ADVENT_AI=0` turns it off, `ADVENT_AI_MODEL` picks another Workers AI model (default `@cf/google/gemma-4-26b-a4b-it`). The player sees an AI-accepted guess as a normal solve.
 - **Pinpoint's ending:** a miss on clue 5 offers the answer. Turning it down gives two more guesses, then the offer comes back. Turn it down again and two more misses end the game: "You're cut off. The answer is '…'." A shown answer finishes the game like a solve (it counts toward the day, on time or late, and unlocks the afterword), but the board records `answerShown` (`asked` or `cutoff`). The day page then says Revealed, admin and the ntfy push say "asked for the answer" or "cut off", and the result card leads with that instead of Solved.
 - **Keyboards:** Wordle and the Mini use an on-screen keyboard, so the phone's own keyboard never covers the grid. A physical keyboard works too (arrows, Tab and space in the Mini).
 - **Queens and Patches:** not built yet. The game ids already exist, and the `events` table no longer restricts game ids, so adding a game needs no migration.

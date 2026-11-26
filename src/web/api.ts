@@ -35,6 +35,23 @@ export const getProgress = () => call<ProgressResponse>('/api/progress');
 export const postEvent = (e: EventInput) =>
   call<{ ok: true; id: number; late?: boolean }>('/api/events', { method: 'POST', body: JSON.stringify(e) });
 
+export type RemoteVerdict = 'correct' | 'wrong' | 'unavailable';
+
+/** Ask the server's AI judge about a Pinpoint guess the word matcher rejected. Never throws. */
+export async function judgeGuess(day: number, guess: string, token?: string): Promise<RemoteVerdict> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'unavailable';
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 10_000);
+  try {
+    const r = await call<{ verdict?: RemoteVerdict }>('/api/judge', { method: 'POST', body: JSON.stringify({ day, guess }), signal: ctl.signal }, token);
+    return r.verdict === 'correct' || r.verdict === 'wrong' ? r.verdict : 'unavailable';
+  } catch {
+    return 'unavailable';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const adminLog = (token: string, q = '') => call<{ events: AdminEventView[] }>(`/api/admin/log${q}`, {}, token);
 export const adminVoid = (token: string, body: { ids: number[]; reason: string }) =>
   call<{ ok: true; id: number; voided: number[] }>('/api/admin/void', { method: 'POST', body: JSON.stringify(body) }, token);

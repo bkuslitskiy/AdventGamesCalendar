@@ -123,6 +123,18 @@ function loose(guess: string, target: string): boolean {
 
 export type Verdict = 'correct' | 'wrong';
 
+/** Longest guess the input takes and the AI judge accepts. */
+export const GUESS_MAX = 60;
+
+/**
+ * Guesses the AI judge never sees: the puzzle opts out (`ai: false`), or the guess is close to a `reject`
+ * or `tests.reject` entry. Those lists are the author's word, so the AI can't overrule them.
+ */
+export function blocksAi(guess: string, p: Pick<PinpointPuzzle, 'ai' | 'reject' | 'tests'>): boolean {
+  if (p.ai === false) return true;
+  return [...(p.reject ?? []), ...(p.tests?.reject ?? [])].some((r) => close(guess, r));
+}
+
 export function judge(guess: string, p: Pick<PinpointPuzzle, 'answer' | 'aliases' | 'reject'>): Verdict {
   if (tokens(guess).length === 0) return 'wrong';
   if ((p.reject ?? []).some((r) => close(guess, r))) return 'wrong';
