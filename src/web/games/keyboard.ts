@@ -1,7 +1,7 @@
 import { h } from '../dom.ts';
 
 /**
- * On-screen QWERTY keyboard shared by Wordle and the Mini, plus physical-keyboard input.
+ * On-screen QWERTY keyboard shared by Wordle, the Mini and Crossclimb, plus physical-keyboard input.
  * The phone's own keyboard never opens, so the grid stays in view.
  */
 

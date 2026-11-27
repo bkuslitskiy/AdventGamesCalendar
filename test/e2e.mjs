@@ -130,21 +130,32 @@ try {
     await solvedCard('pinpoint');
   }
 
-  // ---- Crossclimb: a miss, fill, arrange, ends ----
+  // ---- Crossclimb: a miss, fill, arrange, ends — all on the on-screen keyboard ----
   if (has('crossclimb')) {
     const p = load('crossclimb');
     await page.goto(`${BASE}/#/day/${N}/crossclimb`);
     await page.waitForSelector('.ladder');
-    await page.click('.rung[data-row="0"] input');
-    await page.keyboard.type('Q'.repeat(p.length));
-    await page.fill('.rung[data-row="0"] input', '');
+    ok((await page.locator('.ladder input, .dock input').count()) === 0, "crossclimb: no text inputs, so the phone's keyboard never opens");
+    const first = await page.locator('.rung.active').getAttribute('data-row');
+    ok((await page.textContent('.dock .clue')) === p.rungs[Number(first)].clue, 'crossclimb: the first open rung starts active, with its clue');
+    const onScreen = async (sel) => {
+      const b = await page.locator(sel).boundingBox();
+      return !!b && b.y >= 0 && b.y + b.height <= page.viewportSize().height;
+    };
+    ok((await onScreen('.dock .clue')) && (await onScreen('.key[data-key="Q"]')), 'crossclimb: the clue and keys are on screen');
+    const clear = await page.evaluate(() => document.querySelector('.rung.active').getBoundingClientRect().bottom <= document.querySelector('.dock').getBoundingClientRect().top + 1);
+    ok(clear, 'crossclimb: the active row is in view above the dock');
+    for (let k = 0; k < p.length; k++) await page.click('.key[data-key="Q"]');
+    ok((await page.textContent('.dock .feedback')).includes('Not that one'), 'crossclimb: a wrong word typed on the on-screen keys is a miss');
     for (let i = 0; i < p.rungs.length; i++) {
-      const sel = `.rung[data-row="${i}"] input`;
+      const sel = `.rung.typing[data-row="${i}"]`;
       if (!(await page.locator(sel).count())) continue;
       await page.click(sel);
-      await page.fill(sel, '');
+      ok((await page.textContent('.dock .clue')) === p.rungs[i].clue, `crossclimb: tapping rung ${i} shows its clue`);
       await page.keyboard.type(p.rungs[i].word);
     }
+    if (await page.locator('.rung.tappable').count()) ok(await page.locator('.dock .kb').isHidden(), 'crossclimb: the keys hide while arranging');
+    else ok(await page.locator('.dock .kb').isVisible(), 'crossclimb: the shuffle was already a ladder, so straight to the ends with keys up');
     const words = async () => (await page.locator('.ladder > .rung').allTextContents()).slice(1, -1).map((t) => t.replace(/\s+/g, ''));
     const target = p.rungs.map((r) => r.word);
     for (let pos = 0; pos < target.length; pos++) {
@@ -154,10 +165,11 @@ try {
         await page.locator('.ladder > .rung').nth(at + 1).click();
       }
     }
-    await page.click('.rung[data-row="top"] input');
+    ok((await page.locator('.rung.active').getAttribute('data-row')) === 'top', 'crossclimb: the ends start with the top row active');
+    ok((await onScreen('.dock .clue')) && (await page.textContent('.dock .clue')).includes(p.ends.clue), 'crossclimb: the ends clue is on screen');
     await page.keyboard.type(p.ends.top);
-    if (await page.locator('.rung[data-row="bottom"] input').count()) {
-      await page.click('.rung[data-row="bottom"] input');
+    if (await page.locator('.rung.typing[data-row="bottom"]').count()) {
+      await page.click('.rung.typing[data-row="bottom"]');
       await page.keyboard.type(p.ends.bottom);
     }
     await solvedCard('crossclimb');
@@ -467,10 +479,22 @@ try {
     );
     ok(broken.length === 0, `320px: connections words fit their tiles${broken.length ? ` (not: ${broken.join(', ')})` : ''}`);
   }
-  for (const g of ['wordle', 'mini', 'hashtag'].filter(has)) {
+  for (const g of ['wordle', 'mini', 'hashtag', 'crossclimb'].filter(has)) {
     await small.goto(`${BASE}/#/day/${N}/${g}`);
-    await small.waitForSelector({ wordle: '.wordle', mini: '.mini', hashtag: '.hashtag' }[g]);
+    await small.waitForSelector({ wordle: '.wordle', mini: '.mini', hashtag: '.hashtag', crossclimb: '.ladder' }[g]);
     ok(await small.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `320px: ${g} fits the screen`);
+    if (g === 'crossclimb') {
+      const seen = await small.evaluate(() =>
+        ['.dock .clue', '.key[data-key="Q"]', '.key[data-key="M"]'].every((sel) => {
+          const r = document.querySelector(sel)?.getBoundingClientRect();
+          return !!r && r.top >= 0 && r.bottom <= innerHeight;
+        }),
+      );
+      ok(seen, '320×640: the crossclimb clue and keys are on screen');
+      await small.waitForTimeout(100);
+      const clear = await small.evaluate(() => document.querySelector('.rung.active').getBoundingClientRect().bottom <= document.querySelector('.dock').getBoundingClientRect().top + 1);
+      ok(clear, '320×640: the active crossclimb row is in view above the dock');
+    }
   }
 
   ok(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);

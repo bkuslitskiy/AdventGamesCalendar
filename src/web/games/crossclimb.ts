@@ -3,6 +3,7 @@ import { clean, endFits, isLadder, oneApart } from '../../core/crossclimb.ts';
 import { shuffled } from '../../core/rand.ts';
 import type { CrossclimbBoard, CrossclimbPuzzle } from '../../core/types.ts';
 import type { GameProps, GameView } from './types.ts';
+import { BACK, keyboard } from './keyboard.ts';
 
 export interface CrossclimbWip {
   entries: Record<number, string>;
@@ -18,6 +19,11 @@ export const CROSSCLIMB_HOWTO =
 type Phase = 'fill' | 'arrange' | 'ends' | 'done';
 type RowId = number | 'top' | 'bottom';
 
+/**
+ * Typing goes through the shared on-screen keyboard, never a text input, so the phone's own keyboard
+ * never opens. The clue, feedback and keys sit together in a dock pinned to the bottom of the screen,
+ * so the clue stays in view however long the ladder is.
+ */
 export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip, CrossclimbBoard>): GameView {
   const p = props.puzzle;
   const L = p.length;
@@ -31,7 +37,6 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
   let bottom = solved ? solved.bottom : w?.bottom ?? '';
   let attempts = w?.attempts ?? 0;
   let selected: number | null = null;
-  let active: RowId | null = null;
 
   const orderWords = () => order.map((i) => words[i]!);
   const rungDone = (i: number) => entries[i] === words[i];
@@ -46,9 +51,30 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     return 'done';
   }
 
+  /** Rows that take typing right now, top to bottom. */
+  function editable(): RowId[] {
+    const ph = phase();
+    if (ph === 'fill') return order.filter((i) => !rungDone(i));
+    if (ph === 'ends') return [...(topOk() ? [] : ['top' as const]), ...(bottomOk() ? [] : ['bottom' as const])];
+    return [];
+  }
+  let active: RowId | null = editable()[0] ?? null;
+
+  const valueOf = (id: RowId): string => (id === 'top' ? top : id === 'bottom' ? bottom : entries[id] ?? '');
+  function setValue(id: RowId, v: string): void {
+    if (id === 'top') top = v;
+    else if (id === 'bottom') bottom = v;
+    else entries[id] = v;
+  }
+
   const ladder = h('div', { class: 'ladder' });
   const clue = h('div', { class: 'clue', role: 'status' });
   const feedback = h('p', { class: 'feedback', role: 'status' });
+  const kb = solved ? null : keyboard({ onKey, onOther });
+  const dock = solved ? null : h('div', { class: 'dock' }, clue, feedback, kb!.el);
+  // display: contents, so the dock sticks against the whole page, not just the game's own box (which
+  // starts below the fold on a small phone).
+  const root = h('div', { class: 'cc' }, ladder, dock ?? feedback);
 
   const persist = () => props.save({ entries, order, top, bottom, attempts });
 
@@ -62,39 +88,29 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     );
   }
 
-  function inputRow(id: RowId, value: string, label: string, onFull: (v: string, row: HTMLElement) => void): HTMLElement {
-    const row = h('div', { class: 'rung', 'data-row': String(id) });
-    const input = h('input', {
-      type: 'text',
-      value,
-      maxlength: String(L),
-      autocomplete: 'off',
-      autocapitalize: 'characters',
-      spellcheck: 'false',
-      enterkeyhint: 'next',
-      'aria-label': label,
-    });
-    const paint = () => {
-      row.querySelector('.boxes')?.replaceWith(boxes(input.value, document.activeElement === input));
-    };
-    input.addEventListener('focus', () => {
-      active = id;
-      showClue();
-      paint();
-    });
-    input.addEventListener('blur', paint);
-    input.addEventListener('input', () => {
-      const v = clean(input.value).slice(0, L);
-      input.value = v;
-      if (typeof id === 'number') entries[id] = v;
-      else if (id === 'top') top = v;
-      else bottom = v;
-      paint();
-      persist();
-      if (v.length === L) onFull(v, row);
-    });
-    row.append(boxes(value, false), input);
-    return row;
+  function typingRow(id: RowId, label: string): HTMLElement {
+    const value = valueOf(id);
+    const on = active === id;
+    return h(
+      'div',
+      {
+        class: ['rung', 'typing', on && 'active'],
+        'data-row': String(id),
+        role: 'button',
+        tabindex: '0',
+        'aria-pressed': on ? 'true' : 'false',
+        'aria-label': `${label}: ${value ? value.split('').join(' ') : 'empty'}`,
+        onclick: (ev: MouseEvent) => {
+          if (active === id) return;
+          const hadFocus = document.activeElement === ev.currentTarget;
+          active = id;
+          render();
+          // Keep keyboard focus on the row it was on (render rebuilt it).
+          if (hadFocus) ladder.querySelector<HTMLElement>(`[data-row="${id}"]`)?.focus();
+        },
+      },
+      boxes(value, on),
+    );
   }
 
   function fixedRow(value: string, cls: string[], link?: boolean | null, onClick?: () => void): HTMLElement {
@@ -106,10 +122,11 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     );
   }
 
-  function miss(row: HTMLElement): void {
+  function miss(id: RowId): void {
     attempts++;
     persist();
-    shake(row);
+    const row = ladder.querySelector<HTMLElement>(`[data-row="${id}"]`);
+    if (row) shake(row);
     feedback.textContent = 'Not that one.';
     feedback.className = 'feedback bad';
   }
@@ -125,12 +142,6 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     }
   }
 
-  function focusRow(id: RowId | null): void {
-    if (id === null) return;
-    const el = ladder.querySelector<HTMLInputElement>(`[data-row="${id}"] input`);
-    el?.focus();
-  }
-
   function nextOpen(after: number): number | null {
     const pos = order.indexOf(after);
     for (let k = 1; k <= order.length; k++) {
@@ -140,6 +151,14 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     return null;
   }
 
+  /** Bring the active row into view above the dock (on open, and after typing moved it; not after a tap). */
+  function reveal(smooth = true): void {
+    if (!dock?.isConnected) return;
+    root.style.setProperty('--dock-h', `${dock.offsetHeight}px`);
+    const still = !smooth || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    ladder.querySelector('.rung.active')?.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  }
+
   function render(): void {
     const ph = phase();
     const rows: HTMLElement[] = [];
@@ -147,31 +166,13 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     const linkAt = (pos: number) => (ph === 'fill' || pos === 0 ? null : oneApart(ow[pos - 1]!, ow[pos]!));
 
     // Top end
-    if (ph === 'ends' && !topOk()) {
-      rows.push(
-        inputRow('top', top, 'Top word', (v, row) => {
-          if (topOk()) after();
-          else if (v.length === L) miss(row);
-        }),
-      );
-    } else if (ph === 'ends' || ph === 'done') {
-      rows.push(fixedRow(top, ['end', 'correct']));
-    } else {
-      rows.push(fixedRow('', ['end', 'locked']));
-    }
+    if (ph === 'ends' && !topOk()) rows.push(typingRow('top', 'Top word'));
+    else if (ph === 'ends' || ph === 'done') rows.push(fixedRow(top, ['end', 'correct']));
+    else rows.push(fixedRow('', ['end', 'locked']));
 
     order.forEach((i, pos) => {
       if (ph === 'fill' && !rungDone(i)) {
-        rows.push(
-          inputRow(i, entries[i] ?? '', `Rung ${pos + 1}`, (v, row) => {
-            if (v === words[i]) {
-              feedback.textContent = '';
-              persist();
-              const next = nextOpen(i);
-              after(next);
-            } else miss(row);
-          }),
-        );
+        rows.push(typingRow(i, `Rung ${pos + 1}`));
       } else if (ph === 'arrange') {
         rows.push(
           fixedRow(words[i]!, ['correct', selected === pos && 'selected'].filter(Boolean) as string[], linkAt(pos), () => {
@@ -191,35 +192,90 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     });
 
     // Bottom end
-    if (ph === 'ends' && !bottomOk()) {
-      rows.push(
-        inputRow('bottom', bottom, 'Bottom word', (v, row) => {
-          if (bottomOk()) after();
-          else if (v.length === L) miss(row);
-        }),
-      );
-    } else if (ph === 'ends' || ph === 'done') {
-      rows.push(fixedRow(bottom, ['end', 'correct']));
-    } else {
-      rows.push(fixedRow('', ['end', 'locked']));
-    }
+    if (ph === 'ends' && !bottomOk()) rows.push(typingRow('bottom', 'Bottom word'));
+    else if (ph === 'ends' || ph === 'done') rows.push(fixedRow(bottom, ['end', 'correct']));
+    else rows.push(fixedRow('', ['end', 'locked']));
+
     mount(ladder, rows);
+    if (kb) kb.el.hidden = ph !== 'fill' && ph !== 'ends';
     showClue();
   }
 
-  function after(focus: RowId | null = active): void {
-    const before = phase();
+  /** Re-render after a change, keeping a typing row active while there is one, and finish on a solve. */
+  function after(next: RowId | null = active): void {
+    const open = editable();
+    active = next !== null && open.includes(next) ? next : open[0] ?? null;
     render();
-    const ph = phase();
-    if (ph === 'done' && !solved) {
+    if (phase() === 'done' && !solved) {
+      kb?.destroy();
       props.onSolve({ order: order.slice(), top, bottom }, attempts);
       return;
     }
-    if (ph === 'ends' && before !== 'ends') focusRow(topOk() ? 'bottom' : 'top');
-    else if (ph === 'ends') focusRow(topOk() ? 'bottom' : 'top');
-    else if (ph === 'fill') focusRow(focus);
+    reveal();
+  }
+
+  function onKey(k: string): void {
+    if (active === null) return;
+    const id = active;
+    const before = valueOf(id);
+    if (k === BACK) {
+      if (!before) return;
+      setValue(id, before.slice(0, -1));
+      persist();
+      render();
+      return;
+    }
+    // A full row is always a wrong one (right answers lock), so typing starts it over.
+    const v = clean(before.length >= L ? k : before + k).slice(0, L);
+    setValue(id, v);
+    persist();
+    if (v.length < L) {
+      render();
+      return;
+    }
+    if (typeof id === 'number') {
+      if (v === words[id]) {
+        feedback.textContent = '';
+        feedback.className = 'feedback';
+        persist();
+        after(nextOpen(id));
+      } else {
+        render();
+        miss(id);
+      }
+    } else if (id === 'top' ? topOk() : bottomOk()) {
+      feedback.textContent = '';
+      feedback.className = 'feedback';
+      after(null);
+    } else {
+      render();
+      miss(id);
+    }
+  }
+
+  /** Physical keys beyond letters: arrows move between typing rows; Enter or Space presses a focused row. */
+  function onOther(ev: KeyboardEvent): boolean {
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      const open = editable();
+      if (!open.length) return false;
+      const at = active === null ? -1 : open.indexOf(active);
+      const step = ev.key === 'ArrowDown' ? 1 : -1;
+      active = open[(at + step + open.length) % open.length]!;
+      render();
+      reveal();
+      return true;
+    }
+    const t = ev.target as HTMLElement | null;
+    if ((ev.key === 'Enter' || ev.key === ' ') && t?.classList.contains('rung') && t.getAttribute('role') === 'button') {
+      t.click();
+      return true;
+    }
+    return false;
   }
 
   render();
-  return { el: h('div', null, ladder, solved ? null : clue, feedback) };
+  // The page mounts this and scrolls to the top first; then, on a short screen, scroll just enough that
+  // the row being typed isn't hidden behind the dock.
+  if (dock) requestAnimationFrame(() => reveal(false));
+  return { el: root, destroy: () => kb?.destroy() };
 }
