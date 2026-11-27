@@ -3,6 +3,7 @@ import { GROUP_SIZE, groupOf, guessKey, judgeGroup, norm } from '../../core/conn
 import { shuffled } from '../../core/rand.ts';
 import type { ConnectionsBoard, ConnectionsPuzzle } from '../../core/types.ts';
 import { fill, type GameProps, type GameView } from './types.ts';
+import { dock } from './dock.ts';
 
 export interface ConnectionsWip {
   order: number[];
@@ -128,7 +129,10 @@ export function connectionsGame(props: GameProps<ConnectionsPuzzle, ConnectionsW
       say(p.groups[verdict.index]!.name, 'good');
       persist();
       render();
-      if (order.length === p.groups.length) props.onSolve({ order: order.slice(), guesses: guesses.map((g) => g.slice()) }, attempts);
+      if (order.length === p.groups.length) {
+        dk?.destroy();
+        props.onSolve({ order: order.slice(), guesses: guesses.map((g) => g.slice()) }, attempts);
+      }
       return;
     }
     attempts++;
@@ -153,7 +157,12 @@ export function connectionsGame(props: GameProps<ConnectionsPuzzle, ConnectionsW
     );
   }
 
+  // Feedback, buttons and the mistake count sit in a dock pinned to the bottom of the screen, so Submit is
+  // always in reach under the tiles.
+  const revealGrid = () => dk?.reveal(gridEl, false);
+  const dk = solved ? null : dock([feedback, controls, mistakes], revealGrid);
   render();
   if (solved) return { el: h('div', null, groupsEl, recap()) };
-  return { el: h('div', null, groupsEl, gridEl, feedback, controls, mistakes) };
+  requestAnimationFrame(revealGrid);
+  return { el: h('div', { class: 'docked' }, groupsEl, gridEl, dk!.el), destroy: () => dk!.destroy() };
 }

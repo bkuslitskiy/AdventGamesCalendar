@@ -4,6 +4,7 @@ import { shuffled } from '../../core/rand.ts';
 import type { CrossclimbBoard, CrossclimbPuzzle } from '../../core/types.ts';
 import type { GameProps, GameView } from './types.ts';
 import { BACK, keyboard } from './keyboard.ts';
+import { dock } from './dock.ts';
 
 export interface CrossclimbWip {
   entries: Record<number, string>;
@@ -71,10 +72,11 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
   const clue = h('div', { class: 'clue', role: 'status' });
   const feedback = h('p', { class: 'feedback', role: 'status' });
   const kb = solved ? null : keyboard({ onKey, onOther });
-  const dock = solved ? null : h('div', { class: 'dock' }, clue, feedback, kb!.el);
+  // If the dock changes height (rotation, the keys hiding), keep the row being typed in view above it.
+  const dk = solved ? null : dock([clue, feedback, kb!.el], () => reveal(false));
   // display: contents, so the dock sticks against the whole page, not just the game's own box (which
   // starts below the fold on a small phone).
-  const root = h('div', { class: 'cc' }, ladder, dock ?? feedback);
+  const root = h('div', { class: 'cc' }, ladder, dk?.el ?? feedback);
 
   const persist = () => props.save({ entries, order, top, bottom, attempts });
 
@@ -153,10 +155,7 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
 
   /** Bring the active row into view above the dock (on open, and after typing moved it; not after a tap). */
   function reveal(smooth = true): void {
-    if (!dock?.isConnected) return;
-    root.style.setProperty('--dock-h', `${dock.offsetHeight}px`);
-    const still = !smooth || matchMedia('(prefers-reduced-motion: reduce)').matches;
-    ladder.querySelector('.rung.active')?.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    dk?.reveal(ladder.querySelector('.rung.active'), smooth);
   }
 
   function render(): void {
@@ -208,6 +207,7 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
     render();
     if (phase() === 'done' && !solved) {
       kb?.destroy();
+      dk?.destroy();
       props.onSolve({ order: order.slice(), top, bottom }, attempts);
       return;
     }
@@ -276,6 +276,12 @@ export function crossclimbGame(props: GameProps<CrossclimbPuzzle, CrossclimbWip,
   render();
   // The page mounts this and scrolls to the top first; then, on a short screen, scroll just enough that
   // the row being typed isn't hidden behind the dock.
-  if (dock) requestAnimationFrame(() => reveal(false));
-  return { el: root, destroy: () => kb?.destroy() };
+  if (dk) requestAnimationFrame(() => reveal(false));
+  return {
+    el: root,
+    destroy: () => {
+      kb?.destroy();
+      dk?.destroy();
+    },
+  };
 }
