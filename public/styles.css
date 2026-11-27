@@ -813,9 +813,22 @@ div.lede p {
   font-weight: 700;
 }
 
-/* Clue, feedback and keys pinned to the bottom of the screen while the ladder scrolls above. */
-.cc {
+/*
+ * The dock (src/web/games/dock.ts): clue, feedback and keys (Crossclimb, Wordle, the Mini) or buttons
+ * (Connections), pinned to the bottom of the screen while the board scrolls above. The game's root is
+ * display: contents, so the dock sticks against the whole page, and carries --dock-h, the dock's height.
+ */
+.cc,
+.docked {
   display: contents;
+}
+
+/* Room for the dock when a board is scrolled into view above it. */
+.docked .wordle,
+.docked .wrow,
+.docked .mini,
+.docked .conn-grid {
+  scroll-margin: 12px 0 calc(var(--dock-h, 0px) + 12px);
 }
 
 .dock {
@@ -832,9 +845,12 @@ div.lede p {
   margin: 0;
 }
 
+/* One line of a fixed height, so a message appearing doesn't resize the dock (and the board above it). */
 .dock .feedback {
   min-height: 20px;
   margin: 6px 0;
+  font-size: 15px;
+  line-height: 20px;
 }
 
 .dock .kb {
@@ -843,6 +859,39 @@ div.lede p {
 
 .dock .kb[hidden] {
   display: none;
+}
+
+/* A phone held sideways has no room for a pinned dock, so there it scrolls with the page. */
+@media (max-height: 420px) {
+  .dock {
+    position: static;
+  }
+}
+
+.dock .mini-clue {
+  margin-bottom: 0;
+}
+
+/* Two lines' room, so moving between clues doesn't resize the dock (and the grid above it). */
+.dock .mini-cluetext {
+  min-height: 67px;
+}
+
+.dock .conn-controls {
+  flex-wrap: nowrap;
+}
+
+.dock .conn-controls .btn {
+  flex: 1 1 auto;
+  padding-inline: 12px;
+}
+
+/* Always one line tall, so the first mistake doesn't resize the dock. */
+.dock .conn-mistakes {
+  min-height: 20px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 /* ---- Shared keyboard (Wordle, Mini) ---- */
@@ -878,6 +927,13 @@ div.lede p {
   font-size: 17px;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+/* Shorter keys on short screens (a Galaxy S22 in its browser is about 600–680px tall). svh: browser bars shown. */
+@supports (height: 100svh) {
+  .key {
+    height: clamp(44px, 7svh, 54px);
+  }
 }
 
 .key.wide {
@@ -916,6 +972,19 @@ div.lede p {
   display: grid;
   gap: var(--gap);
   justify-content: center;
+}
+
+/* While playing, six rows also fit between the top of the screen and the dock (not on a phone held sideways). */
+@media (min-height: 421px) {
+  @supports (height: 100svh) {
+    .docked .wordle {
+      --tile: min(
+        58px,
+        calc((min(100vw, 560px) - 32px - (var(--len, 5) - 1) * var(--gap)) / var(--len, 5)),
+        max(30px, calc((100svh - var(--dock-h, 0px) - 24px - 5 * var(--gap)) / 6))
+      );
+    }
+  }
 }
 
 .wrow {
@@ -1196,6 +1265,7 @@ div.lede p {
   gap: 2px;
   padding: 2px;
   width: 100%;
+  max-width: calc(var(--cols, 5) * 68px);
   margin: 0 auto;
   border-radius: 10px;
   overflow: hidden;
@@ -1263,6 +1333,15 @@ div.lede p {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-top: 18px;
+}
+
+/* While playing, the whole grid also fits between the top of the screen and the dock (not sideways). */
+@media (min-height: 421px) {
+  @supports (height: 100svh) {
+    .docked .mini {
+      max-width: min(calc(var(--cols, 5) * 68px), max(200px, calc((100svh - var(--dock-h, 0px) - 24px) * var(--cols, 5) / var(--rows, 5))));
+    }
+  }
 }
 
 @media (max-width: 480px) {

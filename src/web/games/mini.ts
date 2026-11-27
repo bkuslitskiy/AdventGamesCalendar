@@ -3,6 +3,7 @@ import { entries, isFull, isSolved, isWhite, numbering, type Dir, type Entry } f
 import type { MiniBoard, MiniPuzzle } from '../../core/types.ts';
 import type { GameProps, GameView } from './types.ts';
 import { BACK, keyboard } from './keyboard.ts';
+import { dock } from './dock.ts';
 
 export interface MiniWip {
   /** Same shape as the grid; ' ' for an empty square. */
@@ -60,9 +61,11 @@ export function miniGame(props: GameProps<MiniPuzzle, MiniWip, MiniBoard>): Game
       gridTemplateColumns: `repeat(${C}, minmax(0, 1fr))`,
       gridTemplateRows: `repeat(${R}, minmax(0, 1fr))`,
       aspectRatio: `${C} / ${R}`,
-      maxWidth: `${C * 68}px`,
     },
   });
+  // The CSS caps the width at 68px a square, and below the keys at what fits above the dock.
+  gridEl.style.setProperty('--cols', String(C));
+  gridEl.style.setProperty('--rows', String(R));
   const cluesEl = h('div', { class: 'mini-clues' });
   const feedback = h('p', { class: 'feedback', role: 'status' });
 
@@ -113,6 +116,7 @@ export function miniGame(props: GameProps<MiniPuzzle, MiniWip, MiniBoard>): Game
       if (isSolved(g, rows())) {
         render();
         kb?.destroy();
+        dk?.destroy();
         say('Solved!', 'good');
         props.onSolve({ grid: rows() }, attempts);
         return;
@@ -272,6 +276,8 @@ export function miniGame(props: GameProps<MiniPuzzle, MiniWip, MiniBoard>): Game
                       onclick: () => {
                         select(e);
                         render();
+                        // Picked from the list further down: bring the grid back into view to type.
+                        dk?.reveal(gridEl);
                       },
                     },
                     h('b', null, e.num),
@@ -293,7 +299,18 @@ export function miniGame(props: GameProps<MiniPuzzle, MiniWip, MiniBoard>): Game
   });
 
   const kb = solved ? null : keyboard({ onKey, onOther });
+  // The current clue, feedback and keys sit in a dock pinned to the bottom of the screen, below the grid
+  // (which sizes itself to the space above it). The full clue list scrolls underneath.
+  const revealGrid = () => dk?.reveal(gridEl, false);
+  const dk = solved ? null : dock([clueBar, feedback, kb!.el], revealGrid);
   render();
   if (solved) return { el: h('div', null, gridEl, cluesEl) };
-  return { el: h('div', null, clueBar, gridEl, feedback, kb!.el, cluesEl), destroy: () => kb!.destroy() };
+  requestAnimationFrame(revealGrid);
+  return {
+    el: h('div', { class: 'docked' }, gridEl, cluesEl, dk!.el),
+    destroy: () => {
+      kb!.destroy();
+      dk!.destroy();
+    },
+  };
 }
