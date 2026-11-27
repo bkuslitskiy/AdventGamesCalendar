@@ -30,12 +30,13 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+function bearer(request: Request): string {
+  const m = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') ?? '');
+  return m ? m[1]!.trim() : '';
+}
+
 export function isAdmin(request: Request, env: Env): boolean {
-  const token = env.ADMIN_TOKEN;
-  if (!token) return false;
-  const header = request.headers.get('authorization') ?? '';
-  const m = /^Bearer\s+(.+)$/i.exec(header);
-  return !!m && safeEqual(m[1]!.trim(), token);
+  return !!env.ADMIN_TOKEN && safeEqual(bearer(request), env.ADMIN_TOKEN);
 }
 
 export function requireAdmin(request: Request, env: Env): Response | null {
@@ -43,9 +44,55 @@ export function requireAdmin(request: Request, env: Env): Response | null {
   return isAdmin(request, env) ? null : fail(401, 'bad admin token');
 }
 
+/** Babe's devices send BABE_KEY, which reaches them once through the link `/#/babe/<key>`. */
+export function isBabe(request: Request, env: Env): boolean {
+  return !!env.BABE_KEY && safeEqual(bearer(request), env.BABE_KEY);
+}
+
+/** Null when the request carries the babe key (or, with `orAdmin`, the admin token); otherwise the error to send. */
+export function requireBabe(request: Request, env: Env, { orAdmin = false } = {}): Response | null {
+  if (isBabe(request, env) || (orAdmin && isAdmin(request, env))) return null;
+  if (!env.BABE_KEY) return fail(503, 'babe mode disabled: set the BABE_KEY secret');
+  return fail(401, 'bad babe key');
+}
+
+/** True when the declared body is bigger than `maxBytes`, so it can be refused before it's read. */
+export function tooLarge(request: Request, maxBytes: number): boolean {
+  return Number(request.headers.get('content-length') ?? 0) > maxBytes;
+}
+
+/**
+ * The body as text, or null when it's bigger than `maxBytes`. Bytes are counted as the body streams in,
+ * so a missing or wrong Content-Length can't get a bigger body buffered.
+ */
+export async function readText(request: Request, maxBytes: number): Promise<string | null> {
+  if (tooLarge(request, maxBytes)) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}
+
 export async function readJson<T>(request: Request, maxBytes = 32_000): Promise<T | null> {
-  const text = await request.text();
-  if (text.length > maxBytes) return null;
+  const text = await readText(request, maxBytes);
+  if (text === null) return null;
   try {
     return JSON.parse(text) as T;
   } catch {

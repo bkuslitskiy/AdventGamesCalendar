@@ -12,24 +12,48 @@ const et = (isoTime: string | null) =>
     ? new Date(isoTime).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '';
 
+// Payloads are read defensively: the log is append-only and may hold events from before the server
+// checked solves, and one odd event must never stop the page from rendering (it's how bad ones get voided).
+
 const SHOWN = { asked: 'asked for the answer', cutoff: 'cut off' } as const;
 /** Pinpoint games that ended by showing the answer, or were solved by the AI judge's say-so. */
 const shownNote = (board: unknown): string | null => {
   const how = pinpointShown(board);
-  if (how) return SHOWN[how];
-  const b = board as PinpointBoard | null;
-  return b?.aiAccepted ? `AI accepted “${b.guesses[b.guesses.length - 1] ?? ''}”` : null;
+  if (how === 'asked' || how === 'cutoff') return SHOWN[how];
+  const b = board as Partial<PinpointBoard> | null;
+  if (!b?.aiAccepted) return null;
+  const last = Array.isArray(b.guesses) ? b.guesses[b.guesses.length - 1] : undefined;
+  return `AI accepted “${typeof last === 'string' ? last : ''}”`;
 };
+
+const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+const statsOf = (payload: unknown): { ms: number; attempts: number } => {
+  const st = (payload as { stats?: { ms?: unknown; attempts?: unknown } } | null)?.stats;
+  return { ms: num(st?.ms), attempts: num(st?.attempts) };
+};
+const boardOf = (payload: unknown): unknown => (payload as { board?: unknown } | null)?.board;
+
+/** Run `fn`; if a malformed payload makes it throw, show `fallback` instead. */
+function safe<T>(fn: () => T, fallback: T): T {
+  try {
+    return fn();
+  } catch (e) {
+    console.warn('admin: unreadable event', e);
+    return fallback;
+  }
+}
 
 function detail(e: AdminEventView): string {
   const p = e.payload as Record<string, unknown> | null;
   if (e.type === 'solve' && p && typeof p === 'object') {
-    const st = p.stats as { ms?: number; attempts?: number } | undefined;
+    const st = statsOf(p);
     const note = shownNote(p.board);
-    return `${fmtTime(st?.ms ?? 0)}, ${st?.attempts ?? 0} misses${note ? `, ${note}` : ''}, rev ${e.rev}`;
+    return `${fmtTime(st.ms)}, ${st.attempts} misses${note ? `, ${note}` : ''}, rev ${e.rev}`;
   }
-  if (e.type === 'void') return `voids ${(p?.ids as number[] | undefined)?.join(', ')}${p?.reason ? `: ${p.reason}` : ''}`;
-  if (e.type === 'reset') return `${e.game ?? 'all games'}${p?.reason ? `: ${p.reason}` : ''}`;
+  const ids = Array.isArray(p?.ids) ? p.ids.join(', ') : '';
+  const reason = typeof p?.reason === 'string' && p.reason ? `: ${p.reason}` : '';
+  if (e.type === 'void') return `voids ${ids}${reason}`;
+  if (e.type === 'reset') return `${e.game ?? 'all games'}${reason}`;
   return e.ua ?? '';
 }
 
@@ -38,7 +62,8 @@ function voidedIn(events: AdminEventView[]): Set<number> {
   const voided = new Set<number>();
   for (const e of [...events].sort((a, b) => b.id - a.id)) {
     if (e.type !== 'void' || voided.has(e.id)) continue;
-    for (const id of ((e.payload as { ids?: number[] })?.ids ?? [])) voided.add(id);
+    const ids = (e.payload as { ids?: unknown } | null)?.ids;
+    for (const id of Array.isArray(ids) ? ids : []) if (typeof id === 'number') voided.add(id);
   }
   return voided;
 }
@@ -90,7 +115,7 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
   };
 
   async function loadProgress() {
-    const { solves } = await getProgress();
+    const { solves } = await getProgress(token!);
     mount(
       progressBox,
       solves.length
@@ -102,15 +127,22 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
               'tbody',
               null,
               solves.map((s) =>
-                h(
-                  'tr',
-                  null,
-                  h('td', null, s.day),
-                  h('td', null, GAME_NAMES[s.game]),
-                  h('td', null, et(s.tsClient)),
-                  h('td', null, s.late ? 'late' : 'yes'),
-                  h('td', null, fmtTime(s.payload.stats.ms)),
-                  h('td', null, s.payload.stats.attempts, shownNote(s.payload.board) ? ` (${shownNote(s.payload.board)})` : null),
+                safe(
+                  () => {
+                    const st = statsOf(s.payload);
+                    const note = shownNote(boardOf(s.payload));
+                    return h(
+                      'tr',
+                      null,
+                      h('td', null, s.day),
+                      h('td', null, GAME_NAMES[s.game] ?? String(s.game)),
+                      h('td', null, et(s.tsClient)),
+                      h('td', null, s.late ? 'late' : 'yes'),
+                      h('td', null, fmtTime(st.ms)),
+                      h('td', null, st.attempts, note ? ` (${note})` : null),
+                    );
+                  },
+                  h('tr', null, h('td', null, s.day), h('td', null, String(s.game)), h('td', { colspan: 4 }, 'unreadable solve')),
                 ),
               ),
             ),
@@ -158,8 +190,8 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
               h('td', null, e.day ?? ''),
               h('td', null, e.game ?? ''),
               h('td', null, et(e.tsServer)),
-              h('td', { title: e.device }, e.device.slice(0, 8)),
-              h('td', null, detail(e)),
+              h('td', { title: e.device }, String(e.device ?? '').slice(0, 8)),
+              h('td', null, safe(() => detail(e), 'unreadable payload')),
             ),
           ),
         ),
@@ -170,7 +202,8 @@ export async function renderAdmin(root: HTMLElement): Promise<void> {
   const resetDay = h('select', { 'aria-label': 'Day to reset' }, Array.from({ length: DAY_COUNT }, (_, i) => h('option', { value: String(i + 1) }, `Day ${i + 1}`)));
   const resetGame = h('select', { 'aria-label': 'Game to reset' }, h('option', { value: '' }, 'All games'), EXPECTED_GAMES.map((g) => h('option', { value: g }, GAME_NAMES[g])));
 
-  const reloadAll = () => Promise.all([loadProgress(), loadLog()]).catch(onError);
+  // Each half loads on its own, so a failure in one still shows the other (and the log, to void from).
+  const reloadAll = () => Promise.all([loadProgress().catch(onError), loadLog().catch(onError)]);
 
   mount(
     root,

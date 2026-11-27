@@ -3,8 +3,12 @@
  * Local stand-in for `wrangler pages dev`: serves public/, routes /api/* to the compiled Pages Functions
  * in .dev/functions, and backs env.DB with node:sqlite (Node ≥ 22.5). Run via `npm run dev`.
  *
- *   PORT=8788  ADMIN_TOKEN=dev  ADVENT_NOW=2026-12-03T15:00:00Z  NTFY_URL=...  DB_FILE=.dev/advent.sqlite (or :memory:)
+ *   PORT=8788  ADMIN_TOKEN=dev  BABE_KEY=dev-babe-key-0123456789  ADVENT_NOW=2026-12-03T15:00:00Z  NTFY_URL=...
+ *   DB_FILE=.dev/advent.sqlite (or :memory:)
  *   ADVENT_EARLY_ACCESS=0  (early access, every day open until Dec 1, is on unless this is 0)
+ *
+ * Static files get the headers public/_headers gives them (the subset Pages uses here: exact paths and
+ * trailing-* prefixes), so the Content-Security-Policy is in force locally too.
  */
 import { createServer } from 'node:http';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
@@ -44,6 +48,7 @@ const DB = { prepare: (sql) => new Stmt(sql) };
 const env = {
   DB,
   ADMIN_TOKEN: process.env.ADMIN_TOKEN ?? 'dev',
+  BABE_KEY: process.env.BABE_KEY ?? 'dev-babe-key-0123456789',
   NTFY_URL: process.env.NTFY_URL,
   ADVENT_NOW: process.env.ADVENT_NOW,
   ADVENT_EARLY_ACCESS: process.env.ADVENT_EARLY_ACCESS,
@@ -98,6 +103,29 @@ const TYPES = {
   '.ico': 'image/x-icon',
 };
 
+/** Headers public/_headers gives `pathname`. Read on every request, so a rebuild needs no restart. */
+function staticHeaders(pathname) {
+  const out = {};
+  let text = '';
+  try {
+    text = readFileSync(join(PUBLIC, '_headers'), 'utf8');
+  } catch {
+    return out;
+  }
+  let applies = false;
+  for (const line of text.split('\n')) {
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+    if (!/^\s/.test(line)) {
+      const rule = line.trim();
+      applies = rule.endsWith('*') ? pathname.startsWith(rule.slice(0, -1)) : pathname === rule;
+    } else if (applies) {
+      const i = line.indexOf(':');
+      if (i > 0) out[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+    }
+  }
+  return out;
+}
+
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const started = Date.now();
@@ -130,7 +158,7 @@ createServer(async (req, res) => {
     if (!path.startsWith(PUBLIC)) return res.writeHead(403).end();
     if (existsSync(path) && statSync(path).isDirectory()) path = join(path, 'index.html');
     if (!existsSync(path)) path = join(PUBLIC, 'index.html');
-    res.writeHead(200, { 'content-type': TYPES[extname(path)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
+    res.writeHead(200, { ...staticHeaders(url.pathname), 'content-type': TYPES[extname(path)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(readFileSync(path));
   } catch (e) {
     console.error(e);
@@ -138,4 +166,5 @@ createServer(async (req, res) => {
   }
 }).listen(PORT, () => {
   console.log(`advent dev server on http://localhost:${PORT}  (admin token: ${env.ADMIN_TOKEN}${env.ADVENT_NOW ? `, clock frozen at ${env.ADVENT_NOW}` : ''})`);
+  console.log(`babe link: http://localhost:${PORT}/#/babe/${env.BABE_KEY}`);
 });

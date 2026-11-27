@@ -31,9 +31,10 @@ export async function getState(previewToken?: string): Promise<StateResponse> {
 }
 
 export const getDay = (n: number, token?: string) => call<DayResponse>(`/api/day/${n}`, {}, token);
-export const getProgress = () => call<ProgressResponse>('/api/progress');
-export const postEvent = (e: EventInput) =>
-  call<{ ok: true; id: number; late?: boolean }>('/api/events', { method: 'POST', body: JSON.stringify(e) });
+/** Babe's progress. `key` is the babe key on her devices, or the admin token on the admin page. */
+export const getProgress = (key: string) => call<ProgressResponse>('/api/progress', {}, key);
+export const postEvent = (e: EventInput, key: string) =>
+  call<{ ok: true; id: number; late?: boolean }>('/api/events', { method: 'POST', body: JSON.stringify(e) }, key);
 
 export type RemoteVerdict = 'correct' | 'wrong' | 'unavailable';
 

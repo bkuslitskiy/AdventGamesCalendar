@@ -1,5 +1,7 @@
 # Copy to .dev.vars for `npx wrangler pages dev` (never commit .dev.vars).
 ADMIN_TOKEN=dev
+# Babe mode: open http://localhost:8788/#/babe/<BABE_KEY> once to play as babe.
+BABE_KEY=dev-babe-key-0123456789
 # NTFY_URL=https://ntfy.sh/your-random-topic
 # ADVENT_NOW=2026-12-03T15:00:00Z
 # ADVENT_EARLY_ACCESS=0   # early access (every day open until Dec 1) is on by default; 0 turns it off

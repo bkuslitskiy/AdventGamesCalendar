@@ -31,7 +31,7 @@ Needs Node 22.5 or later (the dev server uses `node:sqlite` as a stand-in for D1
 ```sh
 npm install
 npm test                                   # core unit tests
-npm run dev                                # http://localhost:8788, admin token "dev"
+npm run dev                                # http://localhost:8788, admin token "dev"; it prints the babe link
 ADVENT_NOW=2026-12-03T15:00:00Z npm run dev   # freeze the clock to play-test a December day
 npm run e2e                                # plays all of Day 1 in a headless browser (see below)
 ```
@@ -106,9 +106,10 @@ npm run validate
 1. `npx wrangler d1 create advent` and `npx wrangler d1 create advent-preview`, then put both ids in `wrangler.toml`.
 2. `npm run db:prod` and `npm run db:preview` apply `migrations/` remotely.
 3. Create a Pages project named `adventgamescalendar` from the GitHub repo: framework preset none, build command `npm run build`, output `public` (read from `wrangler.toml`). The Node version comes from `.node-version`.
-4. Set the secrets for production, and for preview if you want admin there: `ADMIN_TOKEN` (long random string) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). On preview only, `ADVENT_NOW` freezes the clock for play-testing. `ADVENT_EARLY_ACCESS=0` turns early access off (see above).
+4. Set the secrets for production, and for preview if you want admin and babe mode there: `ADMIN_TOKEN` and `BABE_KEY` (two different long random strings: `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`) and `NTFY_URL` (e.g. `https://ntfy.sh/<random-topic>`; subscribe to that topic in the ntfy app). Use different values on preview. On preview only, `ADVENT_NOW` freezes the clock for play-testing. `ADVENT_EARLY_ACCESS=0` turns early access off (see above).
+   Then send babe her link, `https://advent.useless.blog/#/babe/<BABE_KEY>`, to open once on each device she plays on.
 5. In Pages, go to Custom domains and add `advent.useless.blog`. Only then create `CNAME advent → adventgamescalendar.pages.dev` wherever useless.blog's DNS lives (on Cloudflare DNS, Pages creates it for you).
-6. Check that `https://advent.useless.blog/robots.txt` disallows everything and that responses carry `X-Robots-Tag: noindex`.
+6. Check that `https://advent.useless.blog/robots.txt` disallows everything and that responses carry `X-Robots-Tag: noindex` and a `Content-Security-Policy`.
 
 ## Admin
 
@@ -123,7 +124,9 @@ Every solve sends an ntfy push: "Day 7 Wend solved on time, 4m12s, 1 miss". A Pi
 
 ## Behaviour notes
 
-- **"Are you babe?":** Yes stores `advent.role=babe` plus a device id, and progress goes to the server. No plays guest mode in localStorage, wipeable from the banner. Nothing stops a stranger from tapping Yes; the log plus void is the recovery path.
+- **"Are you babe?" and the babe link:** babe mode needs `BABE_KEY`, which reaches a device once through the link `/#/babe/<key>`. The app checks the key with the server, keeps it in localStorage with `advent.role=babe` and a device id, and drops it from the address bar. Yes at the gate works on a device that has the key; elsewhere it asks for the link. No plays guest mode in localStorage, wipeable from the banner. `/api/events` and `/api/progress` refuse requests without the key (progress also takes `ADMIN_TOKEN`, for the admin page). Changing `BABE_KEY` signs every device out: a 401 makes the app forget the old key, and solves wait in the outbox until the new link is opened.
+- **Solves are checked on the server** (`src/core/verify.ts`, with the same rules the games use): the board must have its game's shape and, on the puzzle's current `rev`, actually solve it. A solve from an older `rev` (the puzzle was edited while it sat in the outbox) is checked for shape only. Only the checked fields are stored, a request is capped at 200 KB (counted as the body streams in), and a solve time ahead of the server clock is clamped to it. A refused solve is dropped from the outbox, so the history caps sit above anything the games allow or anyone would play. Admin reads payloads defensively, so an odd event in the log can still be seen and voided.
+- **Security headers:** `npm run build` writes `public/_headers` from `src/_headers` (edit that one). The Content-Security-Policy allows scripts from the site only, plus the inline import map by its hash, which changes every build; styles from the site and Google Fonts; no framing. Style attributes are blocked, so `dom.ts` sets string styles through `style.cssText`. The dev server applies `_headers` too, and `npm run e2e` fails on any CSP violation.
 - **Updates reach open tabs:** every build stamps the same id into the browser code (`public/js/web/build.js`) and `/api/state` (`build`). A tab running older code reloads itself when it goes back to the calendar or opens a day or game, after saving any puzzle in progress, at most once per deploy. A game being played is left alone until the next page change.
 - **Caching:** the useless.blog zone gives `/js/*` and `/styles.css` a 4-hour browser cache that overrides `_headers`, while the page itself is always revalidated. So `public/index.html` is generated by `npm run build` from `src/index.html` (edit that one) with every module at `?v=<build>` through an import map, and a new deploy is always new URLs.
 - **Mid-puzzle state:** stays on the device. Only finished solves sync. Offline solves queue in an outbox and send on the next load.

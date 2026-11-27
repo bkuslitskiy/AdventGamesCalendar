@@ -29,6 +29,8 @@ const DAY = join(ROOT, 'content', 'days', String(N).padStart(2, '0'));
 const PORT = Number(process.env.E2E_PORT ?? 8799);
 const BASE = `http://localhost:${PORT}`;
 const SHOTS = process.env.SHOTS ? join(ROOT, process.env.SHOTS) : null;
+const BABE_KEY = 'e2e-babe-key-0123456789abcdef';
+const AUTH = { authorization: `Bearer ${BABE_KEY}` };
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const has = (g) => existsSync(join(DAY, `${g}.json`));
@@ -47,7 +49,7 @@ const ok = (cond, msg) => {
 // ---- dev server ----
 const server = spawn(process.execPath, [join(ROOT, 'tools', 'dev-server.mjs')], {
   cwd: ROOT,
-  env: { ...process.env, PORT: String(PORT), DB_FILE: ':memory:', ADVENT_NOW: '2026-11-28T17:00:00Z', ADVENT_EARLY_ACCESS: '1', NTFY_URL: '', ADVENT_FAKE_AI: '1' },
+  env: { ...process.env, PORT: String(PORT), DB_FILE: ':memory:', ADVENT_NOW: '2026-11-28T17:00:00Z', ADVENT_EARLY_ACCESS: '1', NTFY_URL: '', ADVENT_FAKE_AI: '1', BABE_KEY },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let serverLog = '';
@@ -68,13 +70,19 @@ for (let i = 0; ; i++) {
 
 const browser = await chromium.launch();
 const errors = [];
+const cspViolations = [];
 async function phone(opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ...opts });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(String(e)));
-  page.on('console', (m) => m.type() === 'error' && !/favicon|fonts\./.test(m.text()) && errors.push(m.text()));
+  page.on('console', (m) => {
+    if (/Content Security Policy/i.test(m.text())) cspViolations.push(m.text());
+    else if (m.type() === 'error' && !/favicon|fonts\./.test(m.text())) errors.push(m.text());
+  });
   return page;
 }
+/** Babe's progress as the server has it (the babe key is needed to read it). */
+const babeProgress = () => fetch(`${BASE}/api/progress`, { headers: AUTH }).then((r) => r.json());
 
 try {
   const page = await phone();
@@ -89,7 +97,16 @@ try {
   // ---- Gate, calendar, day ----
   await page.goto(`${BASE}/`);
   await page.getByRole('button', { name: 'Yes' }).click();
+  ok(/Open your link/.test(await page.textContent('.gate h1')), 'gate: Yes without the babe link asks for it');
+  const quiet = errors.length;
+  await page.goto(`${BASE}/#/babe/not-the-key-0123456789`);
+  await page.waitForSelector('.gate .err');
+  ok(/didn’t work/.test(await page.textContent('.gate h1')), 'gate: a wrong babe link is turned down');
+  // The browser logs the expected 401 as a console error; it isn't one here.
+  errors.splice(quiet, errors.length - quiet, ...errors.slice(quiet).filter((e) => !/status of 401/.test(e)));
+  await page.goto(`${BASE}/#/babe/${BABE_KEY}`);
   await page.waitForSelector('.month');
+  ok(!page.url().includes(BABE_KEY), 'gate: the babe link leaves the address bar');
   ok(/Early access/.test(await page.textContent('.lede')), 'calendar: early-access message before Dec 1');
   ok((await page.locator('a.door').count()) === 31, 'calendar: every day is open during early access');
   const assets = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((u) => /\/js\/|styles\.css/.test(u)));
@@ -291,7 +308,7 @@ try {
     ok(pair ? detail.includes(`the fewest is ${best}`) : detail.includes('the fewest possible'), `hashtag: result compares with the fewest swaps — ${detail}`);
     ok((await page.locator('.htile.hit').count()) === 16, 'hashtag: solved view is all green');
     if (pair) {
-      const rec = (await page.evaluate(() => fetch('/api/progress').then((r) => r.json()))).solves.find((s) => s.game === 'hashtag');
+      const rec = (await babeProgress()).solves.find((s) => s.game === 'hashtag');
       ok(rec?.payload.stats.attempts >= 1, `hashtag: the wasted swap is logged as a miss (${rec?.payload.stats.attempts})`);
     }
   }
@@ -304,7 +321,7 @@ try {
   await page.goto(`${BASE}/#/`);
   await page.waitForSelector('.month');
   ok((await page.locator(`a.door[href="#/day/${N}"].ontime`).count()) === 1, `calendar: day ${N} shows solved on the day`);
-  const progress = await page.evaluate(() => fetch('/api/progress').then((r) => r.json()));
+  const progress = await babeProgress();
   ok(progress.solves.length === games.length, `server log holds ${progress.solves.length} solves for babe`);
   await page.reload();
   for (const g of games) {
@@ -325,7 +342,7 @@ try {
     await guest.keyboard.type(load('wordle').answer);
     await guest.keyboard.press('Enter');
     await guest.waitForSelector('.result');
-    const after = await guest.evaluate(() => fetch('/api/progress').then((r) => r.json()));
+    const after = await babeProgress();
     ok(after.solves.length === games.length, "guest: a solve doesn't touch babe's log");
   }
   if (has('connections')) {
@@ -390,7 +407,7 @@ try {
     await asker.getByRole('button', { name: 'Show me' }).click();
     await asker.waitForSelector('.result h2');
     ok(/Answer revealed/.test(await asker.textContent('.result h2')), 'pinpoint: asking shows the answer');
-    const progress = await asker.evaluate(() => fetch('/api/progress').then((r) => r.json()));
+    const progress = await babeProgress();
     ok(progress.solves.length === games.length, "pinpoint: a guest's revealed answer doesn't touch babe's log");
 
     // ---- AI judge (the dev server's fake says YES only to guesses containing "fakeyes") ----
@@ -514,6 +531,43 @@ try {
       await ph.waitForTimeout(100);
       ok(pinned && (await flush()), `${label}: the ${g} dock sits on the bottom edge, on open and scrolled to the end`);
     }
+  }
+
+  // ---- Security: babe key, solve checks, headers ----
+  {
+    const post = (body, headers = AUTH) => fetch(`${BASE}/api/events`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    const id = () => `e2e-${Math.random().toString(36).slice(2, 12)}`;
+    const solve = (game, board, extra = {}) => ({ type: 'solve', clientId: id(), device: 'e2e-device-0001', tsClient: new Date().toISOString(), day: N, game, rev: 'x', payload: { board, stats: { ms: 1000, attempts: 0 } }, ...extra });
+    const wordle = has('wordle') ? load('wordle') : null;
+    ok((await fetch(`${BASE}/api/progress`)).status === 401, 'security: progress needs the babe key');
+    ok((await post(solve('wordle', { guesses: ['X'] }), {})).status === 401, 'security: a solve without the babe key is refused');
+    ok((await post(solve('wordle', { guesses: ['X'] }), { authorization: 'Bearer nope' })).status === 401, 'security: a wrong babe key is refused');
+    ok((await post({ type: 'identify', clientId: id(), device: 'e2e-device-0001' }, {})).status === 401, 'security: identify needs the babe key');
+    if (wordle) {
+      const pub = (await fetch(`${BASE}/api/day/${N}`).then((r) => r.json())).puzzles.wordle;
+      const wrong = await post(solve('wordle', { guesses: ['Q'.repeat(wordle.answer.length)] }, { rev: pub.rev }));
+      ok(wrong.status === 400, `security: a board that doesn't solve the puzzle is refused (${wrong.status} ${(await wrong.json()).error})`);
+      const bad = await post(solve('wordle', { note: 'hi babe' }, { rev: pub.rev }));
+      ok(bad.status === 400, 'security: a malformed board is refused');
+      const big = await post(solve('wordle', { guesses: [wordle.answer.toUpperCase()] }, { rev: pub.rev, pad: 'A'.repeat(210_000) }));
+      ok(big.status === 413, `security: an oversized body is refused (${big.status})`);
+      // Streamed with no Content-Length: the cap is counted as the body arrives.
+      const chunk = new TextEncoder().encode('A'.repeat(50_000));
+      const stream = new ReadableStream({ start(c) { for (let i = 0; i < 5; i++) c.enqueue(chunk); c.close(); } });
+      const streamed = await fetch(`${BASE}/api/events`, { method: 'POST', headers: AUTH, body: stream, duplex: 'half' });
+      ok(streamed.status === 413, `security: an oversized streamed body is refused (${streamed.status})`);
+      const answer = wordle.answer.toUpperCase();
+      const extra = await post(solve('wordle', null, { rev: pub.rev, payload: { board: { guesses: [answer], note: 'x' }, stats: { ms: 1, attempts: 0, more: 1 }, pad: 'A'.repeat(1000) } }));
+      const { id: extraId } = await extra.json();
+      const log = await fetch(`${BASE}/api/admin/log?type=solve&limit=20`, { headers: { authorization: 'Bearer dev' } }).then((r) => r.json());
+      const stored = log.events.find((e) => e.id === extraId)?.payload;
+      ok(extra.status === 200 && JSON.stringify(stored) === JSON.stringify({ board: { guesses: [answer] }, stats: { ms: 1, attempts: 0 } }), `security: only the checked fields are stored (${JSON.stringify(stored)})`);
+    }
+    const head = await fetch(`${BASE}/`);
+    const csp = head.headers.get('content-security-policy') ?? '';
+    ok(/script-src 'self' 'sha256-/.test(csp) && /frame-ancestors 'none'/.test(csp), 'headers: the page sends a Content-Security-Policy');
+    ok(head.headers.get('x-frame-options') === 'DENY', 'headers: X-Frame-Options DENY');
+    ok(cspViolations.length === 0, `headers: no Content-Security-Policy violations${cspViolations.length ? `: ${cspViolations.slice(0, 3).join(' | ')}` : ''}`);
   }
 
   ok(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(' | ')}` : ''}`);

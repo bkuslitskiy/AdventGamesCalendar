@@ -7,3 +7,4 @@ public/index.html
 server/content.generated.ts
 *.sqlite
 *.sqlite-*
+public/_headers
