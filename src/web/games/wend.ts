@@ -50,8 +50,23 @@ export function wendGame(props: GameProps<WendPuzzle, WendWip, WendBoard>): Game
     letters,
   );
   const feedback = h('p', { class: 'feedback', role: 'status' });
-  const words = h('div', { class: 'words' });
-  const count = h('p', { class: 'theme' });
+  const theme = h('p', { class: 'theme' });
+
+  // Word tracker under the grid, as in LinkedIn's Wend: one row of boxes per word, shortest first.
+  // A found word fills the first open row of its length, so equal-length rows never give away which is which.
+  const rowLens = p.words.map((w) => w.word.length).sort((a, b) => a - b);
+  // Same width as the board, inset by a tile's margin (5% of a cell), so the rows line up with the grid's left edge.
+  const inset = `${5 / cols}%`;
+  const slots = h('div', {
+    class: 'wend-slots',
+    role: 'img',
+    style: { maxWidth: `${cols * 78}px`, paddingLeft: inset, paddingRight: inset },
+  });
+  slots.style.setProperty('--n', String(rowLens[rowLens.length - 1] ?? 1));
+  const lensText = (() => {
+    const ls = rowLens.map(String);
+    return ls.length > 1 ? `${ls.slice(0, -1).join(', ')} and ${ls[ls.length - 1]}` : ls[0] ?? '';
+  })();
 
   const centre = (c: Cell) => `${c[1] + 0.5},${c[0] + 0.5}`;
 
@@ -107,13 +122,31 @@ export function wendGame(props: GameProps<WendPuzzle, WendWip, WendBoard>): Game
     }
     mount(svg, lines);
 
+    const rowWord: (number | undefined)[] = rowLens.map(() => undefined);
+    for (const i of found) {
+      const len = p.words[i]!.word.length;
+      const r = rowLens.findIndex((l, j) => l === len && rowWord[j] === undefined);
+      if (r >= 0) rowWord[r] = i;
+    }
     mount(
-      words,
-      found.map((i) => h('span', { style: { background: fill(inkOf(i), 75) } }, p.words[i]!.word)),
+      slots,
+      rowLens.map((len, r) => {
+        const i = rowWord[r];
+        const word = i === undefined ? '' : p.words[i]!.word;
+        const bg = i === undefined ? undefined : { background: fill(inkOf(i), 75) };
+        return h(
+          'div',
+          { class: ['slot', i !== undefined && 'found'] },
+          Array.from({ length: len }, (_, j) => h('span', { style: bg }, word[j] ?? '')),
+        );
+      }),
     );
-    count.textContent = done()
-      ? p.theme ?? ''
-      : `${found.length} of ${p.words.length} words found`;
+    const names = found.map((i) => p.words[i]!.word).join(', ');
+    slots.setAttribute(
+      'aria-label',
+      `${p.words.length} words of ${lensText} letters; ${found.length} found${names ? `: ${names}` : ''}`,
+    );
+    theme.textContent = done() ? p.theme ?? '' : '';
   }
 
   function persist(): void {
@@ -233,5 +266,5 @@ export function wendGame(props: GameProps<WendPuzzle, WendWip, WendBoard>): Game
   }
 
   render();
-  return { el: h('div', null, board, feedback, words, count) };
+  return { el: h('div', null, board, feedback, slots, theme) };
 }
