@@ -729,14 +729,20 @@ div.lede p {
   box-shadow: inset 0 -4px 0 var(--pink);
 }
 
-.rung input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-  font-size: 16px;
-  border: 0;
-  cursor: text;
+.rung.typing {
+  cursor: pointer;
+  border-radius: 12px;
+  /* Room for the dock when typing scrolls a row into view. */
+  scroll-margin: 12px 0 calc(var(--dock-h, 0px) + 12px);
+}
+
+.rung.typing:focus-visible {
+  outline: 3px solid var(--pink);
+  outline-offset: 2px;
+}
+
+.rung.typing.active .box {
+  border-color: var(--pink);
 }
 
 .rung.correct .box {
@@ -785,6 +791,38 @@ div.lede p {
   border-radius: var(--radius);
   background: var(--paper-2);
   font-weight: 700;
+}
+
+/* Clue, feedback and keys pinned to the bottom of the screen while the ladder scrolls above. */
+.cc {
+  display: contents;
+}
+
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 8px -16px 0;
+  padding: 8px 16px max(10px, env(safe-area-inset-bottom));
+  background: var(--paper);
+  box-shadow: 0 -10px 12px -10px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+.dock .clue {
+  margin: 0;
+}
+
+.dock .feedback {
+  min-height: 20px;
+  margin: 6px 0;
+}
+
+.dock .kb {
+  margin-top: 0;
+}
+
+.dock .kb[hidden] {
+  display: none;
 }
 
 /* ---- Shared keyboard (Wordle, Mini) ---- */
