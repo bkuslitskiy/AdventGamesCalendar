@@ -591,21 +591,41 @@ div.lede p {
   color: #1a2a70;
 }
 
-.words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin-top: 14px;
-  min-height: 34px;
+/* Word tracker: a row of boxes per word, shortest first, left-aligned under the grid.
+   Boxes cap at 26px and shrink so the longest word (--n letters) always fits on one line. */
+.wend-slots {
+  container-type: inline-size;
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  margin: 0 auto;
 }
 
-.words span {
-  padding: 3px 12px;
-  border-radius: 999px;
-  font-weight: 800;
+.wend-slots .slot {
+  --b: min(26px, calc((100cqi - (var(--n) - 1) * 4px) / var(--n)));
+  display: flex;
+  gap: 4px;
+}
+
+.wend-slots span {
+  width: var(--b);
+  height: var(--b);
+  border-radius: 22%;
+  background: var(--paper-2);
+  border: 2px solid var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-casual);
+  font-variation-settings: var(--casual);
+  font-weight: 900;
+  font-size: calc(var(--b) * 0.55);
+  line-height: 1;
   color: #1a2a70;
-  letter-spacing: 0.05em;
+}
+
+.wend-slots .found span {
+  border-color: transparent;
 }
 
 .theme {
