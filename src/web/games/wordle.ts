@@ -112,7 +112,7 @@ export function wordleGame(props: GameProps<WordlePuzzle, WordleWip, WordleBoard
       props.onSolve({ guesses: guesses.slice() }, guesses.length - 1);
       return;
     }
-    say(guesses.length === ROWS ? 'That was the last row. Keep going: there’s always another one.' : '');
+    say(guesses.length === ROWS ? 'Keep going: here’s another row.' : '');
     render();
     // Past the sixth row the grid grows: keep the row being typed above the keys.
     if (guesses.length >= ROWS) dk?.reveal(grid.querySelector('.wrow.current'));

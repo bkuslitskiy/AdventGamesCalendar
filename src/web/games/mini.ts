@@ -124,7 +124,7 @@ export function miniGame(props: GameProps<MiniPuzzle, MiniWip, MiniBoard>): Game
       if (!wasFull) {
         attempts++;
         persist();
-        say('The grid is full, but something’s not right yet.', 'bad');
+        say('Full, but not right yet.', 'bad');
         shake(gridEl);
       }
     } else {

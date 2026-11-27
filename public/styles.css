@@ -823,12 +823,18 @@ div.lede p {
   display: contents;
 }
 
-/* Room for the dock when a board is scrolled into view above it. */
+/* Room for the dock when a board is scrolled into view above it. Less than the dock's 8px top margin, so
+   the dock never ends up resting in its own place a few pixels above the bottom of the screen. */
 .docked .wordle,
 .docked .wrow,
 .docked .mini,
 .docked .conn-grid {
-  scroll-margin: 12px 0 calc(var(--dock-h, 0px) + 12px);
+  scroll-margin: 12px 0 calc(var(--dock-h, 0px) + 6px);
+}
+
+/* No empty space under the dock when scrolled to the end. */
+#app:has(.dock) {
+  padding-bottom: 0;
 }
 
 .dock {
@@ -845,12 +851,16 @@ div.lede p {
   margin: 0;
 }
 
-/* One line of a fixed height, so a message appearing doesn't resize the dock (and the board above it). */
+/* Exactly one line, so a message never resizes the dock (and the board above it). The built-in messages fit
+   at 320px; only a long Connections group name, also shown in full above the tiles, can be cut short. */
 .dock .feedback {
-  min-height: 20px;
+  height: 20px;
   margin: 6px 0;
+  overflow: hidden;
   font-size: 15px;
   line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .dock .kb {
@@ -861,8 +871,9 @@ div.lede p {
   display: none;
 }
 
-/* A phone held sideways has no room for a pinned dock, so there it scrolls with the page. */
-@media (max-height: 420px) {
+/* Under 501px tall (a phone held sideways, a split screen) there's no room for both a pinned dock and a
+   readable board, so the dock scrolls with the page there. */
+@media (max-height: 500px) {
   .dock {
     position: static;
   }
@@ -872,7 +883,8 @@ div.lede p {
   margin-bottom: 0;
 }
 
-/* Two lines' room, so moving between clues doesn't resize the dock (and the grid above it). */
+/* Two lines' room, so moving between clues doesn't resize the dock (and the grid above it). A longer clue
+   grows the dock rather than being cut off; the README asks for Mini clues that fit two lines. */
 .dock .mini-cluetext {
   min-height: 67px;
 }
@@ -974,14 +986,15 @@ div.lede p {
   justify-content: center;
 }
 
-/* While playing, six rows also fit between the top of the screen and the dock (not on a phone held sideways). */
-@media (min-height: 421px) {
+/* While playing, six rows also fit between the top of the screen and the dock (from 501px tall, where the
+   dock is pinned; the 30px floor never binds there). */
+@media (min-height: 501px) {
   @supports (height: 100svh) {
     .docked .wordle {
       --tile: min(
         58px,
         calc((min(100vw, 560px) - 32px - (var(--len, 5) - 1) * var(--gap)) / var(--len, 5)),
-        max(30px, calc((100svh - var(--dock-h, 0px) - 24px - 5 * var(--gap)) / 6))
+        max(30px, calc((100svh - var(--dock-h, 0px) - 18px - 5 * var(--gap)) / 6))
       );
     }
   }
@@ -1335,11 +1348,12 @@ div.lede p {
   margin-top: 18px;
 }
 
-/* While playing, the whole grid also fits between the top of the screen and the dock (not sideways). */
-@media (min-height: 421px) {
+/* While playing, the whole grid also fits between the top of the screen and the dock (from 501px tall, where
+   the dock is pinned; the 200px floor only binds there if a clue runs past two lines). */
+@media (min-height: 501px) {
   @supports (height: 100svh) {
     .docked .mini {
-      max-width: min(calc(var(--cols, 5) * 68px), max(200px, calc((100svh - var(--dock-h, 0px) - 24px) * var(--cols, 5) / var(--rows, 5))));
+      max-width: min(calc(var(--cols, 5) * 68px), max(200px, calc((100svh - var(--dock-h, 0px) - 18px) * var(--cols, 5) / var(--rows, 5))));
     }
   }
 }

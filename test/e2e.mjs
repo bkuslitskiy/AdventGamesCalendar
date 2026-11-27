@@ -508,6 +508,11 @@ try {
       ok(seen, `${label}: the ${g} ${g === 'connections' ? 'Submit button is' : 'keys are'} on screen without scrolling`);
       const clear = await ph.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return b.top >= -1 && b.bottom <= document.querySelector('.dock').getBoundingClientRect().top + 1; }, want.above);
       ok(clear, `${label}: the whole ${g === 'crossclimb' ? 'active row' : g === 'connections' ? 'set of tiles' : 'grid'} is in view above the dock`);
+      const flush = async () => ph.evaluate(() => Math.abs(document.querySelector('.dock').getBoundingClientRect().bottom - innerHeight) <= 1);
+      const pinned = await flush();
+      await ph.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await ph.waitForTimeout(100);
+      ok(pinned && (await flush()), `${label}: the ${g} dock sits on the bottom edge, on open and scrolled to the end`);
     }
   }
 
