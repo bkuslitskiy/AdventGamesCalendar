@@ -3,6 +3,7 @@ import { ROWS, checkGuess, clean, keyStates, score, type Mark } from '../../core
 import type { WordleBoard, WordlePuzzle } from '../../core/types.ts';
 import type { GameProps, GameView } from './types.ts';
 import { BACK, ENTER, keyboard } from './keyboard.ts';
+import { dock } from './dock.ts';
 
 export interface WordleWip {
   guesses: string[];
@@ -107,11 +108,14 @@ export function wordleGame(props: GameProps<WordlePuzzle, WordleWip, WordleBoard
       say(guesses.length === 1 ? 'First try!' : 'Got it!', 'good');
       render();
       kb?.destroy();
+      dk?.destroy();
       props.onSolve({ guesses: guesses.slice() }, guesses.length - 1);
       return;
     }
-    say(guesses.length === ROWS ? 'That was the last row. Keep going: there’s always another one.' : '');
+    say(guesses.length === ROWS ? 'Keep going: here’s another row.' : '');
     render();
+    // Past the sixth row the grid grows: keep the row being typed above the keys.
+    if (guesses.length >= ROWS) dk?.reveal(grid.querySelector('.wrow.current'));
   }
 
   function onKey(k: string): void {
@@ -130,11 +134,22 @@ export function wordleGame(props: GameProps<WordlePuzzle, WordleWip, WordleBoard
   }
 
   const kb = solved ? null : keyboard({ onKey, enter: 'Enter' });
+  // Feedback and keys sit in a dock pinned to the bottom of the screen; the grid sizes itself to the space above.
+  // Past the sixth row it no longer fits, so the row being typed is what stays in view.
+  const revealGrid = () => dk?.reveal(guesses.length < ROWS ? grid : grid.querySelector('.wrow.current'), false);
+  const dk = solved ? null : dock([feedback, kb!.el], revealGrid);
   render();
   if (!solved) void loadWords();
 
   if (solved) {
     return { el: h('div', null, grid, h('p', { class: 'theme' }, `The word: ${answer}`)) };
   }
-  return { el: h('div', null, grid, feedback, kb!.el), destroy: () => kb!.destroy() };
+  requestAnimationFrame(revealGrid);
+  return {
+    el: h('div', { class: 'docked' }, grid, dk!.el),
+    destroy: () => {
+      kb!.destroy();
+      dk!.destroy();
+    },
+  };
 }

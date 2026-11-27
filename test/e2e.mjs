@@ -483,17 +483,36 @@ try {
     await small.goto(`${BASE}/#/day/${N}/${g}`);
     await small.waitForSelector({ wordle: '.wordle', mini: '.mini', hashtag: '.hashtag', crossclimb: '.ladder' }[g]);
     ok(await small.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), `320px: ${g} fits the screen`);
-    if (g === 'crossclimb') {
-      const seen = await small.evaluate(() =>
-        ['.dock .clue', '.key[data-key="Q"]', '.key[data-key="M"]'].every((sel) => {
-          const r = document.querySelector(sel)?.getBoundingClientRect();
-          return !!r && r.top >= 0 && r.bottom <= innerHeight;
-        }),
-      );
-      ok(seen, '320×640: the crossclimb clue and keys are on screen');
-      await small.waitForTimeout(100);
-      const clear = await small.evaluate(() => document.querySelector('.rung.active').getBoundingClientRect().bottom <= document.querySelector('.dock').getBoundingClientRect().top + 1);
-      ok(clear, '320×640: the active crossclimb row is in view above the dock');
+  }
+
+  // ---- Docks: keys and buttons pinned to the bottom, the board in view above them ----
+  // 360×600 is a Galaxy S22 in Samsung Internet (bars and 3-button navigation showing).
+  const DOCKED = {
+    crossclimb: { on: ['.dock .clue', '.key[data-key="Q"]', '.key[data-key="M"]'], above: '.rung.active' },
+    wordle: { on: ['.key[data-key="Q"]', '.key[data-key="Enter"]', '.key[data-key="Backspace"]'], above: '.wordle' },
+    mini: { on: ['.dock .mini-cluetext', '.key[data-key="Q"]', '.key[data-key="M"]'], above: '.mini' },
+    connections: { on: ['.dock .conn-controls .btn:last-child'], above: '.conn-grid' },
+  };
+  for (const [label, viewport] of [['320×640', { width: 320, height: 640 }], ['Galaxy S22 (360×600)', { width: 360, height: 600 }]]) {
+    const ph = viewport.width === 320 ? small : await phone({ viewport, isMobile: true, hasTouch: true });
+    if (ph !== small) {
+      await ph.goto(`${BASE}/`);
+      await ph.getByRole('button', { name: 'No' }).click();
+      await ph.waitForSelector('.month');
+    }
+    for (const [g, want] of Object.entries(DOCKED).filter(([g]) => has(g))) {
+      await ph.goto(`${BASE}/#/day/${N}/${g}`);
+      await ph.waitForSelector('.dock');
+      await ph.waitForTimeout(150);
+      const seen = await ph.evaluate((sels) => sels.every((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return !!r && r.top >= 0 && r.bottom <= innerHeight + 1; }), want.on);
+      ok(seen, `${label}: the ${g} ${g === 'connections' ? 'Submit button is' : 'keys are'} on screen without scrolling`);
+      const clear = await ph.evaluate((sel) => { const b = document.querySelector(sel).getBoundingClientRect(); return b.top >= -1 && b.bottom <= document.querySelector('.dock').getBoundingClientRect().top + 1; }, want.above);
+      ok(clear, `${label}: the whole ${g === 'crossclimb' ? 'active row' : g === 'connections' ? 'set of tiles' : 'grid'} is in view above the dock`);
+      const flush = async () => ph.evaluate(() => Math.abs(document.querySelector('.dock').getBoundingClientRect().bottom - innerHeight) <= 1);
+      const pinned = await flush();
+      await ph.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await ph.waitForTimeout(100);
+      ok(pinned && (await flush()), `${label}: the ${g} dock sits on the bottom edge, on open and scrolled to the end`);
     }
   }
 
