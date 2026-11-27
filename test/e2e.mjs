@@ -530,8 +530,13 @@ try {
       ok(wrong.status === 400, `security: a board that doesn't solve the puzzle is refused (${wrong.status} ${(await wrong.json()).error})`);
       const bad = await post(solve('wordle', { note: 'hi babe' }, { rev: pub.rev }));
       ok(bad.status === 400, 'security: a malformed board is refused');
-      const big = await post(solve('wordle', { guesses: [wordle.answer.toUpperCase()] }, { rev: pub.rev, pad: 'A'.repeat(25_000) }));
+      const big = await post(solve('wordle', { guesses: [wordle.answer.toUpperCase()] }, { rev: pub.rev, pad: 'A'.repeat(210_000) }));
       ok(big.status === 413, `security: an oversized body is refused (${big.status})`);
+      // Streamed with no Content-Length: the cap is counted as the body arrives.
+      const chunk = new TextEncoder().encode('A'.repeat(50_000));
+      const stream = new ReadableStream({ start(c) { for (let i = 0; i < 5; i++) c.enqueue(chunk); c.close(); } });
+      const streamed = await fetch(`${BASE}/api/events`, { method: 'POST', headers: AUTH, body: stream, duplex: 'half' });
+      ok(streamed.status === 413, `security: an oversized streamed body is refused (${streamed.status})`);
       const answer = wordle.answer.toUpperCase();
       const extra = await post(solve('wordle', null, { rev: pub.rev, payload: { board: { guesses: [answer], note: 'x' }, stats: { ms: 1, attempts: 0, more: 1 }, pad: 'A'.repeat(1000) } }));
       const { id: extraId } = await extra.json();

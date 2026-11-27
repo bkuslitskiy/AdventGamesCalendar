@@ -1,7 +1,7 @@
-import { blocksAi, GUESS_MAX, judge } from './pinpoint.ts';
+import { blocksAi, GUESS_MAX, judge, pinpointCutoff } from './pinpoint.ts';
 import { clean as rungClean, isLadder } from './crossclimb.ts';
-import { guessKey } from './connections.ts';
-import { isSolved, MAX_SIZE } from './mini.ts';
+import { GROUP_SIZE, guessKey } from './connections.ts';
+import { BLOCK, isSolved, MAX_SIZE } from './mini.ts';
 import { clean as wordClean, MAX_LEN } from './wordle.ts';
 import { SQUARES, solution, startTiles, swap } from './hashtag.ts';
 import type {
@@ -31,16 +31,19 @@ import type {
  * shape checked, because it can't be replayed against puzzle data that has since changed.
  *
  * The returned payload is rebuilt from the checked fields, so nothing else a client sends is stored.
- * The list caps are far above anything real play produces; they only bound what a request can store.
+ * A refused solve is dropped from the device's outbox, so the list caps must never turn down real play:
+ * Connections' is every distinct guess there is, and the open-ended ones are far past any real game.
+ * They (and the body cap, sized to fit them) only bound what one request can store.
  */
 
 export const CAPS = {
-  /** Body size of POST /api/events. */
-  bodyBytes: 20_000,
+  /** Body size of POST /api/events, in bytes. Fits the longest Connections history. */
+  bodyBytes: 200_000,
   pinpointGuesses: 20,
-  connectionsGuesses: 150,
-  wordleGuesses: 300,
-  hashtagSwaps: 1000,
+  /** C(16, 4): the game refuses a repeated guess. */
+  connectionsGuesses: 1820,
+  wordleGuesses: 3000,
+  hashtagSwaps: 5000,
   /** Word and rung indices. */
   indices: 100,
   /** Longest a single solve can take: the whole of December. */
@@ -86,6 +89,10 @@ function pinpoint(p: PinpointPuzzle, b: Obj, current: boolean): BoardResult<Pinp
   if (answerShown && aiAccepted) return 'a shown answer is not an AI solve';
   if (current) {
     if (cluesSeen > p.clues.length) return 'bad cluesSeen';
+    // The answer is only offered after a miss on the last clue, and the cut-off comes after the last
+    // extra guess; either way every guess on the board is a miss.
+    const needed = answerShown === 'asked' ? p.clues.length : answerShown === 'cutoff' ? pinpointCutoff(p.clues.length) : 0;
+    if (answerShown && (guesses.length < needed || cluesSeen !== p.clues.length)) return 'the answer was shown before it was offered';
     if (!answerShown) {
       const last = guesses[guesses.length - 1];
       if (last === undefined) return 'no winning guess';
@@ -119,7 +126,9 @@ function crossclimb(p: CrossclimbPuzzle, b: Obj, current: boolean): BoardResult<
 function connections(p: ConnectionsPuzzle, b: Obj, current: boolean): BoardResult<ConnectionsBoard> {
   const { order, guesses } = b;
   if (!indexList(order, 3)) return 'bad order';
-  if (!Array.isArray(guesses) || guesses.length > CAPS.connectionsGuesses || !guesses.every((g) => strList(g, 40, 4))) return 'bad guesses';
+  if (!Array.isArray(guesses) || guesses.length > CAPS.connectionsGuesses || !guesses.every((g) => strList(g, 40, GROUP_SIZE) && g.length === GROUP_SIZE)) {
+    return 'bad guesses';
+  }
   if (current) {
     if (!covers(order, p.groups.length)) return 'not every group was found';
     const tried = new Set((guesses as string[][]).map(guessKey));
@@ -131,14 +140,24 @@ function connections(p: ConnectionsPuzzle, b: Obj, current: boolean): BoardResul
 function mini(p: MiniPuzzle, b: Obj, current: boolean): BoardResult<MiniBoard> {
   const { grid } = b;
   if (!strList(grid, MAX_SIZE, MAX_SIZE)) return 'bad grid';
-  if (current && (grid.length !== p.grid.length || !isSolved(p.grid, grid))) return 'the grid is not solved';
+  if (current) {
+    // Same shape as the puzzle, black squares included: the solved view won't draw anything else.
+    const shaped = grid.length === p.grid.length && grid.every((row, r) => row.length === p.grid[r]!.length && [...row].every((ch, c) => (ch === BLOCK) === (p.grid[r]![c] === BLOCK)));
+    if (!shaped) return 'the grid is not the puzzle’s shape';
+    if (!isSolved(p.grid, grid)) return 'the grid is not solved';
+  }
   return { grid: grid.slice() };
 }
 
 function wordle(p: WordlePuzzle, b: Obj, current: boolean): BoardResult<WordleBoard> {
   const { guesses } = b;
   if (!strList(guesses, MAX_LEN, CAPS.wordleGuesses) || !guesses.every((g) => /^[A-Z]+$/.test(g))) return 'bad guesses';
-  if (current && (guesses.length === 0 || guesses[guesses.length - 1] !== wordClean(p.answer))) return 'the last guess is not the answer';
+  if (current) {
+    const answer = wordClean(p.answer);
+    // Rows the game would take: the answer's length, no repeats (the word list itself is only in the browser).
+    if (!guesses.every((g) => g.length === answer.length) || new Set(guesses).size !== guesses.length) return 'bad guesses';
+    if (guesses[guesses.length - 1] !== answer) return 'the last guess is not the answer';
+  }
   return { guesses: guesses.slice() };
 }
 

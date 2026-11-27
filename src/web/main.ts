@@ -42,8 +42,10 @@ async function claimBabe(key: string): Promise<void> {
     replaceHash('#/');
     return renderBadLink(root, () => void route());
   }
-  replaceHash('#/');
   setBabeKey(key);
+  // A browser that won't keep it (storage blocked or full) would lose the link: leave it in the address bar.
+  if (babeKey() !== key) throw new Error('this browser didn’t save the babe key');
+  replaceHash('#/');
   setRole('babe');
   deviceId();
   identify();

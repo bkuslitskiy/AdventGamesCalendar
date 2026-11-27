@@ -533,6 +533,25 @@ test('verify: pinpoint endings and the AI flag', () => {
   assert.equal(solveOf('pinpoint', p, { guesses: ['x'], cluesSeen: 5, answerShown: 'asked', aiAccepted: true }).ok, false);
   assert.equal(solveOf('pinpoint', p, { guesses: ['x'], cluesSeen: 5, answerShown: 'later' }).ok, false);
   assert.equal(solveOf('pinpoint', p, { guesses: ['x'.repeat(61)], cluesSeen: 1 }).ok, false, 'guess longer than the input takes');
+  const misses = (n) => Array.from({ length: n }, (_, i) => `miss ${i}`);
+  assert.equal(solveOf('pinpoint', p, { guesses: misses(4), cluesSeen: 5, answerShown: 'asked' }).ok, false, 'asked before the offer');
+  assert.equal(solveOf('pinpoint', p, { guesses: misses(5), cluesSeen: 4, answerShown: 'asked' }).ok, false, 'asked with a clue unseen');
+  assert.ok(solveOf('pinpoint', p, { guesses: misses(pinpointCutoff(5)), cluesSeen: 5, answerShown: 'cutoff' }).ok);
+  assert.equal(solveOf('pinpoint', p, { guesses: misses(pinpointCutoff(5) - 1), cluesSeen: 5, answerShown: 'cutoff' }).ok, false, 'cut off too early');
+});
+
+test('verify: Wordle rows, Mini shape and Connections guesses follow the game', () => {
+  const w = { answer: 'brisk' };
+  assert.ok(solveOf('wordle', w, { guesses: ['CRANE', 'BRISK'] }).ok);
+  assert.equal(solveOf('wordle', w, { guesses: ['CAT', 'BRISK'] }).ok, false, 'a row of the wrong length');
+  assert.equal(solveOf('wordle', w, { guesses: ['CRANE', 'CRANE', 'BRISK'] }).ok, false, 'a repeated row');
+  const m = { grid: ['#HASH', 'FORCE'] };
+  assert.ok(solveOf('mini', m, { grid: ['#HASH', 'FORCE'] }).ok);
+  assert.equal(solveOf('mini', m, { grid: ['XHASH', 'FORCE'] }).ok, false, 'a letter on a black square');
+  assert.equal(solveOf('mini', m, { grid: ['#HAS', 'FORCE'] }).ok, false, 'a short row');
+  const c = { groups: [0, 1, 2, 3].map((g) => ({ name: `g${g}`, words: [0, 1, 2, 3].map((i) => `W${g}${i}`) })) };
+  assert.ok(solveOf('connections', c).ok);
+  assert.equal(solveOf('connections', c, { order: [0, 1, 2, 3], guesses: [...canonical.connections(c).guesses, ['W00', 'W01', 'W02']] }).ok, false, 'a three-word guess');
 });
 
 test('verify: malformed boards and stats are refused, whatever the revision', () => {

@@ -1,5 +1,5 @@
 import type { Env, Handler } from '../../server/types.ts';
-import { fail, json, nowMs, readJson, requireBabe, tooLarge } from '../../server/http.ts';
+import { fail, json, nowMs, readText, requireBabe } from '../../server/http.ts';
 import { appendEvent } from '../../server/db.ts';
 import { earlyAccess, puzzleFor } from '../../server/content.ts';
 import { dayOpen, iso, isLate } from '../../src/core/time.ts';
@@ -16,9 +16,15 @@ export const onRequestPost: Handler = async (ctx) => {
   const { request, env } = ctx;
   const denied = requireBabe(request, env);
   if (denied) return denied;
-  if (tooLarge(request, CAPS.bodyBytes)) return fail(413, 'too large');
-  const body = await readJson<EventInput>(request, CAPS.bodyBytes);
-  if (!body) return fail(400, 'invalid JSON');
+  const text = await readText(request, CAPS.bodyBytes);
+  if (text === null) return fail(413, 'too large');
+  let body: EventInput;
+  try {
+    body = JSON.parse(text) as EventInput;
+  } catch {
+    return fail(400, 'invalid JSON');
+  }
+  if (!body || typeof body !== 'object') return fail(400, 'invalid JSON');
   if (body.type !== 'identify' && body.type !== 'solve') return fail(400, 'type must be identify or solve');
   if (typeof body.clientId !== 'string' || !ID.test(body.clientId)) return fail(400, 'bad clientId');
   if (typeof body.device !== 'string' || !ID.test(body.device)) return fail(400, 'bad device');

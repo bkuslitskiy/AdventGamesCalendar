@@ -61,10 +61,38 @@ export function tooLarge(request: Request, maxBytes: number): boolean {
   return Number(request.headers.get('content-length') ?? 0) > maxBytes;
 }
 
-export async function readJson<T>(request: Request, maxBytes = 32_000): Promise<T | null> {
+/**
+ * The body as text, or null when it's bigger than `maxBytes`. Bytes are counted as the body streams in,
+ * so a missing or wrong Content-Length can't get a bigger body buffered.
+ */
+export async function readText(request: Request, maxBytes: number): Promise<string | null> {
   if (tooLarge(request, maxBytes)) return null;
-  const text = await request.text();
-  if (text.length > maxBytes) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}
+
+export async function readJson<T>(request: Request, maxBytes = 32_000): Promise<T | null> {
+  const text = await readText(request, maxBytes);
+  if (text === null) return null;
   try {
     return JSON.parse(text) as T;
   } catch {
