@@ -1,4 +1,4 @@
-import { getProgress, postEvent } from './api.ts';
+import { ApiError, getProgress, postEvent } from './api.ts';
 import { solveKey, type EventInput, type GameId, type SolveKey, type SolveRecord } from '../core/types.ts';
 
 /**
@@ -34,10 +34,23 @@ export function newId(): string {
   return Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 10)).join('-');
 }
 
+/**
+ * The babe key from the link `/#/babe/<key>`. Babe mode needs it: without it, "Yes" at the gate asks for
+ * the link instead. It outlives "Not babe?", so the same device can switch back without the link.
+ */
+const BABE_KEY = 'advent.babeKey';
+export const babeKey = (): string | null => lsGet(BABE_KEY);
+export const setBabeKey = (k: string): void => lsSet(BABE_KEY, k);
+/** The server turned the key down (it was changed): forget it, so the gate asks for the new link. */
+const dropBabeKey = (e: unknown): void => {
+  if (e instanceof ApiError && e.status === 401) lsDel(BABE_KEY);
+};
+
 export function getRole(): Role | null {
   if (sessionStorage.getItem('advent.preview')) return 'preview';
   const r = lsGet('advent.role');
-  return r === 'babe' || r === 'guest' ? r : null;
+  if (r === 'babe') return babeKey() ? 'babe' : null;
+  return r === 'guest' ? r : null;
 }
 
 export function setRole(r: 'babe' | 'guest'): void {
@@ -131,13 +144,20 @@ class RemoteStore implements Store {
   private async doFlush(): Promise<void> {
     const done = new Set<string>();
     for (const item of this.outbox()) {
+      const key = babeKey();
+      if (!key) break;
       try {
-        await postEvent(item.event);
+        await postEvent(item.event, key);
         done.add(item.event.clientId);
       } catch (e) {
-        // 4xx: the server will never take it (e.g. puzzle removed), so drop it. Network errors retry later.
+        // 4xx: the server will never take it (e.g. puzzle removed), so drop it. Network errors retry later,
+        // and so does a turned-down key (401): the solve waits for the new link.
         const status = (e as { status?: number }).status;
-        if (status && status < 500) done.add(item.event.clientId);
+        dropBabeKey(e);
+        if (status && status < 500 && status !== 401) {
+          console.warn(`solve for day ${item.event.day} ${item.event.game} refused: ${(e as Error).message}`);
+          done.add(item.event.clientId);
+        }
       }
     }
     lsSet(this.outboxKey, JSON.stringify(this.outbox().filter((i) => !done.has(i.event.clientId))));
@@ -147,9 +167,10 @@ class RemoteStore implements Store {
     await this.flush();
     let list: SolveRecord[];
     try {
-      list = (await getProgress()).solves;
+      list = (await getProgress(babeKey() ?? '')).solves;
       lsSet(this.cacheKey, JSON.stringify(list));
-    } catch {
+    } catch (e) {
+      dropBabeKey(e);
       list = JSON.parse(lsGet(this.cacheKey) ?? '[]');
     }
     // Solves still waiting in the outbox count locally until the server has them.
@@ -212,7 +233,8 @@ export function storeFor(role: Role): Store {
 }
 
 export function identify(): void {
-  postEvent({ type: 'identify', clientId: newId(), device: deviceId(), tsClient: new Date().toISOString() }).catch(() => {});
+  const key = babeKey();
+  if (key) postEvent({ type: 'identify', clientId: newId(), device: deviceId(), tsClient: new Date().toISOString() }, key).catch(() => {});
 }
 
 // ---- Work in progress (device-local, per puzzle revision) ----

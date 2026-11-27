@@ -21,6 +21,9 @@ function applyAttrs(el: Element, attrs: Attrs): void {
       el.setAttribute('class', Array.isArray(v) ? v.filter(Boolean).join(' ') : String(v));
     } else if (k === 'style' && typeof v === 'object') {
       Object.assign((el as HTMLElement).style, v);
+    } else if (k === 'style') {
+      // Through the CSSOM, not setAttribute: the Content-Security-Policy blocks style attributes.
+      (el as HTMLElement).style.cssText = String(v);
     } else if (k === 'value' || k === 'checked' || k === 'disabled') {
       (el as unknown as Record<string, unknown>)[k] = v;
     } else {

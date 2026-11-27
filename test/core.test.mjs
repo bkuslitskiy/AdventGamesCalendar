@@ -13,6 +13,8 @@ import { judgeGroup, guessKey, groupOf, validateConnections } from '../public/js
 import { entries, numbering, isFull, isSolved, validateMini } from '../public/js/core/mini.js';
 import { score, keyStates, checkGuess, validateWordle } from '../public/js/core/wordle.js';
 import * as hash from '../public/js/core/hashtag.js';
+import { checkSolve, CAPS } from '../public/js/core/verify.js';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 
 const T = (s) => Date.parse(s);
 
@@ -463,4 +465,100 @@ test('hashtag validator', () => {
     if (hash.fewestSwaps(target, t.join('')) > hash.PAR) hard = t.join('');
   }
   assert.ok(hash.validateHashtag({ ...HASH, start: hash.toGrid(hard) }).some((e) => e.includes(`solvable in ${hash.PAR}`)));
+});
+
+// ---- Server-side solve checks (src/core/verify.ts) ----
+
+const DAYS_DIR = new URL('../content/days/', import.meta.url);
+const STATS = { ms: 61_000, attempts: 1 };
+/** The board each game records for a clean solve of puzzle `p`. */
+const canonical = {
+  wend: (p) => ({ order: p.words.map((_, i) => i) }),
+  pinpoint: (p) => ({ guesses: [p.answer], cluesSeen: 1 }),
+  crossclimb: (p) => ({ order: p.rungs.map((_, i) => i), top: p.ends.top, bottom: p.ends.bottom }),
+  connections: (p) => ({ order: [0, 1, 2, 3], guesses: p.groups.map((g) => g.words.slice()) }),
+  mini: (p) => ({ grid: p.grid.slice() }),
+  wordle: (p) => ({ guesses: [p.answer.toUpperCase()] }),
+  hashtag: (p) => ({ swaps: hash.solve(hash.solution(p), hash.startTiles(p)) }),
+};
+const puzzles = readdirSync(DAYS_DIR)
+  .filter((d) => /^\d\d$/.test(d))
+  .flatMap((d) =>
+    Object.keys(canonical)
+      .filter((g) => existsSync(new URL(`${d}/${g}.json`, DAYS_DIR)))
+      .map((g) => ({ day: Number(d), game: g, p: JSON.parse(readFileSync(new URL(`${d}/${g}.json`, DAYS_DIR), 'utf8')) })),
+  );
+const solveOf = (game, p, board = canonical[game](p), current = true) => checkSolve(game, p, { board, stats: STATS }, current);
+
+test('verify: a clean solve of every puzzle in content/ passes', () => {
+  assert.ok(puzzles.length >= 7);
+  for (const { day, game, p } of puzzles) {
+    const r = solveOf(game, p);
+    assert.ok(r.ok, `day ${day} ${game}: ${r.error}`);
+  }
+});
+
+test('verify: unsolved boards fail on the current revision', () => {
+  for (const { day, game, p } of puzzles) {
+    const b = canonical[game](p);
+    const broken = {
+      wend: () => ({ order: b.order.slice(1) }),
+      pinpoint: () => ({ guesses: ['zzzz qqqq'], cluesSeen: 5 }),
+      crossclimb: () => ({ ...b, order: [b.order[1], b.order[0], ...b.order.slice(2)], top: b.bottom, bottom: b.top }),
+      connections: () => ({ order: [0, 1, 2, 3], guesses: b.guesses.slice(1) }),
+      mini: () => ({ grid: b.grid.map((r) => r.replace(/[A-Z]/, (c) => (c === 'A' ? 'B' : 'A'))) }),
+      wordle: () => ({ guesses: ['Q'.repeat(p.answer.length)] }),
+      hashtag: () => ({ swaps: [] }),
+    }[game]();
+    // Crossclimb's swap can still be a valid ladder for some puzzles; only assert when it isn't.
+    if (game === 'crossclimb' && isLadder([b.bottom, ...broken.order.map((i) => p.rungs[i].word), b.top])) continue;
+    const r = solveOf(game, p, broken);
+    assert.equal(r.ok, false, `day ${day} ${game} should fail`);
+  }
+});
+
+test('verify: a ladder climbed the other way round passes', () => {
+  const { p } = puzzles.find((x) => x.game === 'crossclimb');
+  const order = p.rungs.map((_, i) => i).reverse();
+  assert.ok(solveOf('crossclimb', p, { order, top: p.ends.bottom.toLowerCase(), bottom: p.ends.top }).ok);
+});
+
+test('verify: pinpoint endings and the AI flag', () => {
+  const p = { clues: ['Wrench', 'Level', 'Tape', 'Pliers', 'Hammer'], answer: 'Things in a toolbox', reject: ['garage'] };
+  assert.ok(solveOf('pinpoint', p, { guesses: ['a', 'b', 'c', 'd', 'e'], cluesSeen: 5, answerShown: 'asked' }).ok);
+  assert.ok(solveOf('pinpoint', p, { guesses: ['handyman kit'], cluesSeen: 3, aiAccepted: true }).ok, 'AI-accepted guesses are trusted');
+  assert.equal(solveOf('pinpoint', p, { guesses: ['garage'], cluesSeen: 3, aiAccepted: true }).ok, false, "the AI can't overrule reject");
+  assert.equal(solveOf('pinpoint', { ...p, ai: false }, { guesses: ['handyman kit'], cluesSeen: 3, aiAccepted: true }).ok, false, 'ai: false');
+  assert.equal(solveOf('pinpoint', p, { guesses: [], cluesSeen: 1 }).ok, false, 'no guesses');
+  assert.equal(solveOf('pinpoint', p, { guesses: ['x'], cluesSeen: 5, answerShown: 'asked', aiAccepted: true }).ok, false);
+  assert.equal(solveOf('pinpoint', p, { guesses: ['x'], cluesSeen: 5, answerShown: 'later' }).ok, false);
+  assert.equal(solveOf('pinpoint', p, { guesses: ['x'.repeat(61)], cluesSeen: 1 }).ok, false, 'guess longer than the input takes');
+});
+
+test('verify: malformed boards and stats are refused, whatever the revision', () => {
+  const wordle = { answer: 'BRISK' };
+  for (const current of [true, false]) {
+    assert.equal(checkSolve('pinpoint', { clues: [], answer: 'x' }, { board: { aiAccepted: true }, stats: STATS }, current).ok, false, 'no guesses array');
+    assert.equal(checkSolve('wordle', wordle, { board: { note: 'hi' }, stats: STATS }, current).ok, false);
+    assert.equal(checkSolve('wordle', wordle, { board: { guesses: ['brisk'] }, stats: STATS }, current).ok, false, 'lowercase is not what the game records');
+    assert.equal(checkSolve('wordle', wordle, { board: { guesses: ['BRISK'] }, stats: 1 }, current).ok, false);
+    assert.equal(checkSolve('wordle', wordle, { board: { guesses: ['BRISK'] }, stats: { ms: -1, attempts: 0 } }, current).ok, false);
+    assert.equal(checkSolve('wordle', wordle, { board: { guesses: ['BRISK'] }, stats: { ms: 1, attempts: 0.5 } }, current).ok, false);
+    assert.equal(checkSolve('wordle', wordle, { board: { guesses: Array(CAPS.wordleGuesses + 1).fill('BRISK') }, stats: STATS }, current).ok, false);
+    assert.equal(checkSolve('wend', { words: [{}, {}] }, { board: { order: [0, 0] }, stats: STATS }, current).ok, false, 'repeated index');
+    assert.equal(checkSolve('hashtag', {}, { board: { swaps: [[0, 16]] }, stats: STATS }, current).ok, false, 'square out of range');
+    assert.equal(checkSolve('connections', {}, { board: { order: [0], guesses: [[1, 2, 3, 4]] }, stats: STATS }, current).ok, false);
+    assert.equal(checkSolve('queens', {}, { board: {}, stats: STATS }, current).ok, false);
+    assert.equal(checkSolve('wordle', wordle, null, current).ok, false);
+  }
+});
+
+test('verify: an older revision is checked for shape only', () => {
+  const r = checkSolve('wordle', { answer: 'BRISK' }, { board: { guesses: ['CRANE'] }, stats: STATS }, false);
+  assert.ok(r.ok, 'the puzzle changed after this solve, so its answer can differ');
+});
+
+test('verify: only the checked fields are kept', () => {
+  const r = checkSolve('wordle', { answer: 'BRISK' }, { board: { guesses: ['BRISK'], extra: 'x' }, stats: { ms: 1234.6, attempts: 0, more: 1 }, pad: 'A'.repeat(1000) }, true);
+  assert.deepEqual(r, { ok: true, payload: { board: { guesses: ['BRISK'] }, stats: { ms: 1235, attempts: 0 } } });
 });

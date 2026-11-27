@@ -226,7 +226,8 @@ function main() {
  * public/index.html from src/index.html, with every script and the stylesheet at a per-build URL
  * (`?v=<build>`), via an import map for the modules. The useless.blog zone gives /js and /styles.css a
  * 4-hour browser cache that overrides _headers; the page itself is always revalidated, so new URLs per
- * build are what make a reload pick up new code.
+ * build are what make a reload pick up new code. Also writes public/_headers from src/_headers, with the
+ * import map's hash in the Content-Security-Policy.
  */
 function writeIndex(built) {
   const v = encodeURIComponent(built);
@@ -238,9 +239,14 @@ function writeIndex(built) {
     const url = '/js/' + relative(jsDir, file).split('\\').join('/');
     imports[url] = `${url}?v=${v}`;
   }
-  const map = `<script type="importmap">${JSON.stringify({ imports })}</script>`;
+  const mapJson = JSON.stringify({ imports });
+  const map = `<script type="importmap">${mapJson}</script>`;
   const html = readFileSync(join(ROOT, 'src', 'index.html'), 'utf8').replaceAll('%BUILD%', v).replace('<!-- importmap -->', map);
   writeFileSync(join(ROOT, 'public', 'index.html'), html);
+  // The Content-Security-Policy allows no inline script except this import map, by hash.
+  const hash = `'sha256-${createHash('sha256').update(mapJson).digest('base64')}'`;
+  const headers = readFileSync(join(ROOT, 'src', '_headers'), 'utf8').replaceAll('%SCRIPT_HASHES%', hash);
+  writeFileSync(join(ROOT, 'public', '_headers'), headers);
 }
 
 main();

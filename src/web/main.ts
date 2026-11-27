@@ -1,7 +1,8 @@
 import { h, mount } from './dom.ts';
 import { makeApp, reloadIfUpdated, type App } from './app.ts';
-import { deviceId, getRole, identify, setRole } from './store.ts';
-import { renderGate } from './views/gate.ts';
+import { babeKey, deviceId, getRole, identify, setBabeKey, setRole } from './store.ts';
+import { ApiError, getProgress } from './api.ts';
+import { renderBadLink, renderGate } from './views/gate.ts';
 import { renderCalendar } from './views/calendar.ts';
 import { renderDay } from './views/day.ts';
 import { renderPlay } from './views/play.ts';
@@ -25,18 +26,48 @@ function showError(e: unknown): void {
   );
 }
 
+/** Leave the current address for `hash` without a history entry (and without a hashchange). */
+const replaceHash = (hash: string) => history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+
+/**
+ * The babe link, `/#/babe/<key>`: check the key with the server, keep it, and play as babe. Once the
+ * server has answered, the key leaves the address bar. If it couldn't be reached, the link stays, so
+ * "Try again" still has it.
+ */
+async function claimBabe(key: string): Promise<void> {
+  try {
+    await getProgress(key);
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 401)) throw e;
+    replaceHash('#/');
+    return renderBadLink(root, () => void route());
+  }
+  replaceHash('#/');
+  setBabeKey(key);
+  setRole('babe');
+  deviceId();
+  identify();
+  app = null;
+  await route();
+}
+
 async function route(): Promise<void> {
   app?.cleanup?.();
   if (app) app.cleanup = null;
   const hash = location.hash || '#/';
   try {
+    const link = /^#\/babe\/([A-Za-z0-9_-]{16,200})$/.exec(hash);
+    if (link) {
+      await claimBabe(link[1]!);
+      return;
+    }
     if (hash.startsWith('#/admin')) {
       await renderAdmin(root);
       return;
     }
     const role = getRole();
     if (!role) {
-      renderGate(root, (r) => {
+      renderGate(root, !!babeKey(), (r) => {
         setRole(r);
         if (r === 'babe') {
           deviceId();

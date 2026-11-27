@@ -21,6 +21,8 @@ export interface Env {
   DB: D1Database;
   /** Bearer token for /api/admin/* and gate bypass on /api/day/:n. */
   ADMIN_TOKEN?: string;
+  /** Bearer key for babe's writes (/api/events) and progress (/api/progress). Reaches her devices via `/#/babe/<key>`. */
+  BABE_KEY?: string;
   /** ntfy topic URL for solve pings. */
   NTFY_URL?: string;
   /** Play-testing only: freeze the server clock at this ISO time. */
